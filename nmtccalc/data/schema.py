@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 
@@ -18,6 +18,9 @@ class NMTCDeal:
     cde_fee_rate: float                # CDE upfront fee as % of QEI e.g. 0.02
     compliance_years: int = 7          # always 7 per Section 45D
     discount_rate: float = 0.08        # for NPV/IRR calculations
+    noi: Optional[float] = None        # annual net operating income; required for waterfall/DSCR
+    guarantee_fee_rate: float = 0.0    # annual guarantee fee as % of leverage loan e.g. 0.01
+    exit_fee_rate: float = 0.0         # year-7 exit fee as % of QEI e.g. 0.005
     investor_name: Optional[str] = None
     cde_name: Optional[str] = None
     project_location: Optional[str] = None
@@ -37,6 +40,12 @@ class NMTCDeal:
             raise ValueError("compliance_years must be 7 per Section 45D")
         if not (0 < self.discount_rate < 1):
             raise ValueError("discount_rate must be between 0 and 1 (e.g. 0.08)")
+        if self.noi is not None and self.noi < 0:
+            raise ValueError("noi must be non-negative")
+        if self.guarantee_fee_rate < 0:
+            raise ValueError("guarantee_fee_rate must be non-negative")
+        if self.exit_fee_rate < 0:
+            raise ValueError("exit_fee_rate must be non-negative")
 
     @property
     def qei(self) -> float:
@@ -77,6 +86,16 @@ class NMTCDeal:
     def qlici_b_loan(self) -> float:
         """B Loan: mirrors investor equity net of CDE fee."""
         return self.investor_equity - self.cde_fee
+
+    @property
+    def guarantee_fee_annual(self) -> float:
+        """Annual guarantee fee in dollars: leverage loan × guarantee_fee_rate."""
+        return self.leverage_loan * self.guarantee_fee_rate
+
+    @property
+    def exit_fee(self) -> float:
+        """Year-7 exit fee in dollars: QEI × exit_fee_rate."""
+        return self.qei * self.exit_fee_rate
 
     @property
     def qei_mm(self) -> float:
