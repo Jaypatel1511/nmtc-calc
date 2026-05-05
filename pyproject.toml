@@ -14,5 +14,8 @@ dependencies = [
     "numpy>=1.21.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "jupyter", "ipykernel"]
+
 [project.urls]
 Homepage = "https://github.com/Jaypatel1511/nmtc-calc"
