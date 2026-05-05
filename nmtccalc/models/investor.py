@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import pandas as pd
-import numpy as np
 
 from nmtccalc.data.schema import NMTCDeal
 
@@ -53,18 +52,19 @@ class InvestorResult:
         }
 
 
-def _compute_irr(cash_flows: list) -> float:
-    """Compute IRR using numpy."""
-    coeffs = cash_flows[::-1]
-    try:
-        roots = np.roots(coeffs)
-        real_roots = [r.real for r in roots if abs(r.imag) < 1e-6 and r.real > 0]
-        if not real_roots:
+def _compute_irr(cash_flows: list, tol: float = 1e-8, max_iter: int = 1000) -> float:
+    """Compute IRR via Newton-Raphson on the NPV polynomial."""
+    r = 0.10
+    for _ in range(max_iter):
+        npv = sum(cf / (1 + r) ** t for t, cf in enumerate(cash_flows))
+        dnpv = sum(-t * cf / (1 + r) ** (t + 1) for t, cf in enumerate(cash_flows))
+        if abs(dnpv) < 1e-12:
             return float("nan")
-        irr = min(real_roots) - 1
-        return irr
-    except Exception:
-        return float("nan")
+        r_new = r - npv / dnpv
+        if abs(r_new - r) < tol:
+            return r_new
+        r = r_new
+    return float("nan")
 
 
 def analyze(deal: NMTCDeal) -> InvestorResult:

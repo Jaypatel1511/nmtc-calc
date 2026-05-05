@@ -26,8 +26,14 @@ def test_net_benefit_math(sample_deal):
 
 
 def test_irr_is_float(sample_deal):
+    import math
     result = investor.analyze(sample_deal)
-    assert isinstance(result.irr, float)
+    assert isinstance(result.irr, float) and not math.isnan(result.irr)
+
+
+def test_irr_positive_and_reasonable(sample_deal):
+    result = investor.analyze(sample_deal)
+    assert 0.01 < result.irr < 0.25
 
 
 def test_summary_returns_dataframe(sample_deal):
