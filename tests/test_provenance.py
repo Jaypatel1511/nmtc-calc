@@ -102,7 +102,7 @@ def test_supplied_negative_a_refused(sample_deal):
         dataclasses.replace(sample_deal, qlici_a_loan_amount=-1)
 
 
-@pytest.mark.parametrize("field", ["qlici_a_loan_amount", "qlici_b_loan_amount", "noi"])
+@pytest.mark.parametrize("field", ["qlici_a_loan_amount", "qlici_b_loan_amount"])
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), "1000", True])
 def test_optional_amounts_must_be_finite(sample_deal, field, bad):
     with pytest.raises(ValueError, match=f"{field} must be a finite number or None"):

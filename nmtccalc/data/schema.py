@@ -3,7 +3,7 @@ import math
 import numbers
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 from nmtccalc import statute
 from nmtccalc.exceptions import NegativeTrancheError, UnbalancedStackError
@@ -38,7 +38,11 @@ _FLOAT_FIELDS = (
     "qlici_a_loan_rate", "qlici_b_loan_rate", "cde_fee_rate", "discount_rate",
     "guarantee_fee_rate", "exit_fee_rate",
 )
-_OPTIONAL_FLOAT_FIELDS = ("noi", "qlici_a_loan_amount", "qlici_b_loan_amount")
+_OPTIONAL_FLOAT_FIELDS = ("qlici_a_loan_amount", "qlici_b_loan_amount")
+
+
+def _is_finite_real(value) -> bool:
+    return not isinstance(value, bool) and isinstance(value, numbers.Real) and math.isfinite(value)
 
 
 @dataclass
@@ -73,7 +77,10 @@ class NMTCDeal:
     qlici_b_loan_rate: float           # subordinate QLICI loan rate
     cde_fee_rate: float                # CDE upfront fee as % of QEI e.g. 0.02
     discount_rate: float = 0.08        # for NPV/IRR calculations
-    noi: Optional[float] = None        # annual net operating income; required for waterfall/DSCR
+    # Net operating income for years 1..unwind_year: either ONE number applied
+    # to every year (flat -- the waterfall then says its DSCR is a single
+    # stabilized figure) or a sequence with exactly unwind_year entries.
+    noi: Optional[Union[float, Sequence[float]]] = None
     guarantee_fee_rate: float = 0.0    # annual guarantee fee as % of leverage loan e.g. 0.01
     exit_fee_rate: float = 0.0         # exit fee at unwind as % of QEI e.g. 0.005
     investor_name: Optional[str] = None
@@ -115,14 +122,46 @@ class NMTCDeal:
             raise ValueError("unwind_year must be at least 1 (years after the QEI date)")
         if not (0 < self.discount_rate < 1):
             raise ValueError("discount_rate must be between 0 and 1 (e.g. 0.08)")
-        if self.noi is not None and self.noi < 0:
-            raise ValueError("noi must be non-negative")
+        self._validate_noi()
         if self.guarantee_fee_rate < 0:
             raise ValueError("guarantee_fee_rate must be non-negative")
         if self.exit_fee_rate < 0:
             raise ValueError("exit_fee_rate must be non-negative")
         self._refuse_negative_tranches()
         self._refuse_unbalanced_split()
+
+    def _validate_noi(self):
+        if self.noi is None:
+            return
+        if isinstance(self.noi, (list, tuple)):
+            if len(self.noi) != self.unwind_year:
+                raise ValueError(
+                    f"noi series has {len(self.noi)} entries; it needs exactly one per "
+                    f"year 1..unwind_year ({self.unwind_year})")
+            for v in self.noi:
+                if not _is_finite_real(v):
+                    raise ValueError("noi series entries must be finite numbers")
+                if v < 0:
+                    raise ValueError("noi must be non-negative")
+            self.noi = tuple(self.noi)
+            return
+        if not _is_finite_real(self.noi):
+            raise ValueError("noi must be a finite number, a sequence of them, or None")
+        if self.noi < 0:
+            raise ValueError("noi must be non-negative")
+
+    @property
+    def noi_schedule(self) -> Optional[list]:
+        """NOI for years 1..unwind_year, or None when noi was not supplied."""
+        if self.noi is None:
+            return None
+        if isinstance(self.noi, tuple):
+            return list(self.noi)
+        return [self.noi] * self.unwind_year
+
+    @property
+    def noi_is_series(self) -> bool:
+        return isinstance(self.noi, tuple)
 
     def _refuse_negative_tranches(self):
         """Refuse any capital-stack tranche below zero, at construction.

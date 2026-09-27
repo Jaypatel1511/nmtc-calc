@@ -19,6 +19,12 @@ FUND_LINE_DISCLOSURE = (
     "true position."
 )
 
+FLAT_DSCR_NOTE = (
+    "This is one stabilized figure, not a schedule: debt service is interest-only "
+    "on fixed balances, and NOI {how}, so every row is the same. Supply noi as a "
+    "sequence with one entry per year to model a schedule."
+)
+
 SHORTFALL_WARNING = (
     "LEVERAGE SHORTFALL: the Investment Fund cannot service its leverage loan "
     "from the modeled QLICI flows. Annual leverage interest ${lev:,.0f} exceeds "
@@ -72,6 +78,8 @@ class WaterfallResult:
     net_year7_subsidy: float
     avg_dscr: Optional[float]
     min_dscr: Optional[float]
+    dscr_varies: bool = False
+    noi_is_series: bool = False
     unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
     in_recapture_period: bool = False
     leverage_loan: float = 0.0
@@ -126,7 +134,12 @@ class WaterfallResult:
         elif self.unwind_year == statute.RECAPTURE_PERIOD_END_YEAR:
             print("  " + statute.boundary_disclosure())
         if self.avg_dscr is not None:
-            print(f"\nDSCR:  Avg {self.avg_dscr:.2f}x  |  Min {self.min_dscr:.2f}x")
+            if self.dscr_varies:
+                print(f"\nDSCR:  Avg {self.avg_dscr:.2f}x  |  Min {self.min_dscr:.2f}x")
+            else:
+                how = ("is the same in every year of the series supplied" if self.noi_is_series
+                       else "is a single number applied to every year")
+                print(f"\nDSCR:  {self.min_dscr:.2f}x every year. {FLAT_DSCR_NOTE.format(how=how)}")
         print()
         return df
 
@@ -139,6 +152,8 @@ class WaterfallResult:
             "net_year7_subsidy": self.net_year7_subsidy,
             "avg_dscr": self.avg_dscr,
             "min_dscr": self.min_dscr,
+            "dscr_varies": self.dscr_varies,
+            "noi_is_series": self.noi_is_series,
             "unwind_year": self.unwind_year,
             "in_recapture_period": self.in_recapture_period,
             "leverage_loan": self.leverage_loan,
@@ -190,14 +205,16 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     fund_net = fund_qlici_interest - lev_interest
 
     k = deal.unwind_year
+    schedule = deal.noi_schedule
     years = []
     for yr in range(1, k + 1):
-        dscr = (deal.noi / total_ds) if (deal.noi is not None and total_ds > 0) else None
-        net_cf = (deal.noi - total_ds - guarantee_fee) if deal.noi is not None else None
+        noi = schedule[yr - 1] if schedule is not None else None
+        dscr = (noi / total_ds) if (noi is not None and total_ds > 0) else None
+        net_cf = (noi - total_ds - guarantee_fee) if noi is not None else None
 
         years.append(WaterfallYear(
             year=yr,
-            noi=deal.noi,
+            noi=noi,
             a_loan_interest=a_interest,
             b_loan_interest=b_interest,
             total_debt_service=total_ds,
@@ -212,6 +229,7 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
         ))
 
     dscrs = [yr.dscr for yr in years if yr.dscr is not None]
+    dscr_varies = len(set(dscrs)) > 1
 
     annual_short = max(0.0, -fund_net)
     principal_gap = max(0.0, deal.leverage_loan - deal.qlici_a_loan)
@@ -241,6 +259,8 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
         exit_fee=deal.exit_fee,
         net_year7_subsidy=deal.qlici_b_loan - deal.exit_fee,
         avg_dscr=sum(dscrs) / len(dscrs) if dscrs else None,
+        dscr_varies=dscr_varies,
+        noi_is_series=deal.noi_is_series,
         min_dscr=min(dscrs) if dscrs else None,
         unwind_year=k,
         in_recapture_period=statute.unwind_in_recapture_period(k),
