@@ -75,7 +75,7 @@ class NMTCDeal:
     discount_rate: float = 0.08        # for NPV/IRR calculations
     noi: Optional[float] = None        # annual net operating income; required for waterfall/DSCR
     guarantee_fee_rate: float = 0.0    # annual guarantee fee as % of leverage loan e.g. 0.01
-    exit_fee_rate: float = 0.0         # year-7 exit fee as % of QEI e.g. 0.005
+    exit_fee_rate: float = 0.0         # exit fee at unwind as % of QEI e.g. 0.005
     investor_name: Optional[str] = None
     cde_name: Optional[str] = None
     project_location: Optional[str] = None
@@ -249,7 +249,7 @@ class NMTCDeal:
 
     @property
     def exit_fee(self) -> float:
-        """Year-7 exit fee in dollars: QEI × exit_fee_rate."""
+        """Exit fee at unwind in dollars: QEI × exit_fee_rate."""
         return self.qei * self.exit_fee_rate
 
     # ── provenance ──────────────────────────────────────────────────────────

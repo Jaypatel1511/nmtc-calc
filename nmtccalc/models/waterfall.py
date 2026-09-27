@@ -120,7 +120,7 @@ class WaterfallResult:
         print(f"  B Loan Forgiven:  ${self.b_loan_forgiven:,.0f}")
         if self.exit_fee:
             print(f"  Exit Fee:         (${self.exit_fee:,.0f})")
-        print(f"  Net Y7 Subsidy:   ${self.net_year7_subsidy:,.0f}")
+        print(f"  Net Subsidy at Unwind (t={self.unwind_year}): ${self.net_year7_subsidy:,.0f}")
         if self.in_recapture_period:
             print("  " + statute.recapture_disclosure(self.unwind_year))
         elif self.unwind_year == statute.RECAPTURE_PERIOD_END_YEAR:

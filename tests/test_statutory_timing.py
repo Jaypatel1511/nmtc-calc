@@ -311,3 +311,10 @@ def test_unwind_year_must_be_whole(sample_deal, bad):
 
 def test_total_nmtcs_literal(sample_deal):
     assert sample_deal.total_nmtcs == pytest.approx(3_900_000, abs=1e-6)
+
+
+def test_waterfall_unwind_label_follows_unwind_year(sample_deal, capsys):
+    waterfall.analyze(dataclasses.replace(sample_deal, unwind_year=4)).summary()
+    out = capsys.readouterr().out
+    assert "Net Subsidy at Unwind (t=4): $3,037,000" in out
+    assert "Y7" not in out
