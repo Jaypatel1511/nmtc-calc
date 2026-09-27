@@ -90,8 +90,8 @@ def schedule(deal: NMTCDeal) -> CreditScheduleResult:
     Per 26 U.S.C. §45D(a)(3) the credit allowance dates are the date the QEI
     is initially made (t=0) and each of the 6 anniversary dates thereafter
     (t=1..6). Per §45D(a)(2) the credit is 5% of the QEI on the first 3 dates
-    and 6% on the remainder. The total, 39% of QEI, is stated as such only in
-    the IRS NMTC Audit Technique Guide.
+    and 6% on the remainder. The total, 39% of QEI, is not stated in the
+    statute; it is cited to the IRS NMTC Audit Technique Guide.
 
     ``pv_credits`` discounts each credit from its allowance date: the t=0
     credit is not discounted. It is the PV of the credits before any

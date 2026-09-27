@@ -45,7 +45,8 @@ Consequences this package relies on:
   carries full recapture exposure after the last credit is earned.
 * 39% is not stated in the statute or the regulation. It is the sum of the
   §45D(a)(2) percentages over the §45D(a)(3) dates, (3 × 5%) + (4 × 6%), and
-  is stated expressly only in the IRS ATG. It is DERIVED below, never typed.
+  is stated expressly in the IRS ATG, which is what it is cited to. It is
+  DERIVED below, never typed.
 
 What this package does NOT model, and the day-level boundary: the primary
 sources do not say, at the level of a day, whether an event on the seventh
@@ -68,7 +69,7 @@ APPLICABLE_PERCENTAGES = tuple(
     for i in range(len(CREDIT_ALLOWANCE_YEARS))
 )
 
-# Derived, not typed. Stated as 39% only in the IRS ATG (p. 3); see module docstring.
+# Derived, not typed. Cited to the IRS ATG (p. 3), not to §45D; see module docstring.
 TOTAL_CREDIT_RATE = sum(APPLICABLE_PERCENTAGES)
 
 # §45D(g)(1) / §1.45D-1(c)(5)(i): 7 years beginning on the QEI date.

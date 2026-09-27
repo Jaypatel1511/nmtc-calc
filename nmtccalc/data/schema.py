@@ -30,6 +30,12 @@ class Basis:
         return f"{self.provenance.value}: {self.rule}"
 
 
+# HOUSE: whether guarantee fees enter the DSCR denominator. This is a house
+# election, not attributed to any authority. The default EXCLUDES them, which
+# makes DSCR higher than including them would; set
+# include_guarantee_fee_in_dscr=True for the opposite treatment.
+HOUSE_GUARANTEE_FEE_IN_DSCR = False
+
 # Tolerance, in dollars, for A + B reconciling to QLICI total when both are SUPPLIED.
 STACK_TOLERANCE_DOLLARS = 1.0
 
@@ -106,6 +112,10 @@ class NMTCDeal:
     # None, interest savings are REFUSED. (0.2.1 used the Investment Fund's
     # leverage rate, the wrong entity's cost of capital.)
     qalicb_alternative_borrowing_rate: Optional[float] = None
+    # HOUSE ELECTION (see HOUSE_GUARANTEE_FEE_IN_DSCR): False excludes the
+    # annual guarantee fee from the DSCR denominator; True includes it. Net
+    # cash flow deducts the fee either way.
+    include_guarantee_fee_in_dscr: bool = HOUSE_GUARANTEE_FEE_IN_DSCR
 
     def __post_init__(self):
         for name in _FLOAT_FIELDS:
@@ -135,6 +145,8 @@ class NMTCDeal:
         if not (0 < self.discount_rate < 1):
             raise ValueError("discount_rate must be between 0 and 1 (e.g. 0.08)")
         self._validate_noi()
+        if not isinstance(self.include_guarantee_fee_in_dscr, bool):
+            raise ValueError("include_guarantee_fee_in_dscr must be True or False")
         if self.b_loan_forgiveness_rate is not None and not (0 <= self.b_loan_forgiveness_rate <= 1):
             raise ValueError("b_loan_forgiveness_rate must be between 0 and 1 inclusive")
         if self.qalicb_alternative_borrowing_rate is not None and \
@@ -254,8 +266,8 @@ class NMTCDeal:
     @property
     def total_nmtcs(self) -> float:
         """Total tax credits: the §45D(a)(2) percentages summed over the seven
-        §45D(a)(3) allowance dates, which is 39% of QEI (stated as 39% only in
-        the IRS ATG). Derived from ``statute``, not typed."""
+        §45D(a)(3) allowance dates, which is 39% of QEI (not stated in the
+        statute; cited to the IRS ATG). Derived from ``statute``, not typed."""
         return self.qei * statute.TOTAL_CREDIT_RATE
 
     @property

@@ -20,6 +20,14 @@ FUND_LINE_DISCLOSURE = (
     "true position."
 )
 
+GUARANTEE_FEE_NOTE = (
+    "HOUSE ELECTION: guarantee fees are {treatment} the DSCR denominator. This is "
+    "a house election, not attributed to any authority. Excluding a recurring fee "
+    "makes DSCR higher than including it. For the opposite treatment set "
+    "include_guarantee_fee_in_dscr={opposite}. Net cash flow deducts the fee "
+    "either way."
+)
+
 FLAT_DSCR_NOTE = (
     "This is one stabilized figure, not a schedule: debt service is interest-only "
     "on fixed balances, and NOI {how}, so every row is the same. Supply noi as a "
@@ -80,6 +88,7 @@ class WaterfallResult:
     avg_dscr: Optional[float]
     min_dscr: Optional[float]
     dscr_varies: bool = False
+    guarantee_fee_in_dscr: bool = False
     noi_is_series: bool = False
     unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
     in_recapture_period: bool = False
@@ -141,6 +150,9 @@ class WaterfallResult:
         elif self.unwind_year == statute.RECAPTURE_PERIOD_END_YEAR:
             print("  " + statute.boundary_disclosure())
         if self.avg_dscr is not None:
+            print("\n" + GUARANTEE_FEE_NOTE.format(
+                treatment="included in" if self.guarantee_fee_in_dscr else "excluded from",
+                opposite=not self.guarantee_fee_in_dscr))
             if self.dscr_varies:
                 print(f"\nDSCR:  Avg {self.avg_dscr:.2f}x  |  Min {self.min_dscr:.2f}x")
             else:
@@ -160,6 +172,7 @@ class WaterfallResult:
             "avg_dscr": self.avg_dscr,
             "min_dscr": self.min_dscr,
             "dscr_varies": self.dscr_varies,
+            "guarantee_fee_in_dscr": self.guarantee_fee_in_dscr,
             "noi_is_series": self.noi_is_series,
             "unwind_year": self.unwind_year,
             "in_recapture_period": self.in_recapture_period,
@@ -193,9 +206,10 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     A-loan principal repaid at unwind. Any shortfall is reported on the result
     and emitted as a ``LeverageShortfallWarning``.
 
-    Guarantee fees (if any) are shown as a separate line item below debt
-    service — they reduce net cash flow but are excluded from the DSCR
-    denominator, consistent with standard NMTC underwriting convention.
+    Guarantee fees (if any) are shown as a separate line item and always
+    reduce net cash flow. Whether they enter the DSCR denominator is a HOUSE
+    ELECTION (``deal.include_guarantee_fee_in_dscr``, default False =
+    excluded), not a cited convention; GUARANTEE_FEE_NOTE renders it.
 
     Args:
         deal: NMTCDeal instance
@@ -207,6 +221,7 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     b_interest = deal.qlici_b_loan * deal.qlici_b_loan_rate
     total_ds = a_interest + b_interest
     guarantee_fee = deal.guarantee_fee_annual
+    dscr_denominator = total_ds + (guarantee_fee if deal.include_guarantee_fee_in_dscr else 0.0)
 
     lev_interest = deal.leverage_loan * deal.leverage_loan_rate
     fund_qlici_interest = a_interest + b_interest
@@ -219,7 +234,7 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     years = []
     for yr in range(1, k + 1):
         noi = schedule[yr - 1] if schedule is not None else None
-        dscr = (noi / total_ds) if (noi is not None and total_ds > 0) else None
+        dscr = (noi / dscr_denominator) if (noi is not None and dscr_denominator > 0) else None
         net_cf = (noi - total_ds - guarantee_fee) if noi is not None else None
 
         years.append(WaterfallYear(
@@ -270,6 +285,7 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
         net_subsidy_at_unwind=forgiven - deal.exit_fee if forgiven is not None else None,
         avg_dscr=sum(dscrs) / len(dscrs) if dscrs else None,
         dscr_varies=dscr_varies,
+        guarantee_fee_in_dscr=deal.include_guarantee_fee_in_dscr,
         noi_is_series=deal.noi_is_series,
         min_dscr=min(dscrs) if dscrs else None,
         unwind_year=k,
