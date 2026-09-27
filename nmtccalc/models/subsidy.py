@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import pandas as pd
 
+from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
 
 
@@ -71,7 +72,7 @@ def analyze(deal: NMTCDeal) -> SubsidyResult:
     market_rate = deal.leverage_loan_rate  # use leverage rate as market proxy
     interest_savings_7yr = deal.qlici_b_loan * (
         market_rate - deal.qlici_b_loan_rate
-    ) * deal.compliance_years
+    ) * statute.CREDIT_PERIOD_YEARS
 
     # Effective cost of capital: blended rate on total QLICI
     # weighted average of A and B loan rates by their principal amounts

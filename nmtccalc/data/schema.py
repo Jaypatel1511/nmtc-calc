@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from nmtccalc import statute
+
 
 @dataclass
 class NMTCDeal:
@@ -16,7 +18,6 @@ class NMTCDeal:
     qlici_a_loan_rate: float           # senior QLICI loan rate
     qlici_b_loan_rate: float           # subordinate QLICI loan rate
     cde_fee_rate: float                # CDE upfront fee as % of QEI e.g. 0.02
-    compliance_years: int = 7          # always 7 per Section 45D
     discount_rate: float = 0.08        # for NPV/IRR calculations
     noi: Optional[float] = None        # annual net operating income; required for waterfall/DSCR
     guarantee_fee_rate: float = 0.0    # annual guarantee fee as % of leverage loan e.g. 0.01
@@ -24,6 +25,11 @@ class NMTCDeal:
     investor_name: Optional[str] = None
     cde_name: Optional[str] = None
     project_location: Optional[str] = None
+    # Year (t, in years after the QEI date) in which the structure unwinds:
+    # QLICIs repaid or forgiven, the put exercised and the QEI redeemed.
+    # Default 7 = the end of the 7-year recapture period (§45D(g)(1)).
+    # An unwind before 7 is inside the recapture period (§45D(g)(3)(C)).
+    unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
 
     def __post_init__(self):
         if self.total_project_cost <= 0:
@@ -36,8 +42,10 @@ class NMTCDeal:
             raise ValueError("credit_price must be between 0 and 1 (e.g. 0.83)")
         if not (0 < self.cde_fee_rate < 1):
             raise ValueError("cde_fee_rate must be between 0 and 1 (e.g. 0.02)")
-        if self.compliance_years != 7:
-            raise ValueError("compliance_years must be 7 per Section 45D")
+        if isinstance(self.unwind_year, bool) or not isinstance(self.unwind_year, int):
+            raise ValueError("unwind_year must be a whole number of years after the QEI date")
+        if self.unwind_year < 1:
+            raise ValueError("unwind_year must be at least 1 (years after the QEI date)")
         if not (0 < self.discount_rate < 1):
             raise ValueError("discount_rate must be between 0 and 1 (e.g. 0.08)")
         if self.noi is not None and self.noi < 0:
@@ -54,8 +62,10 @@ class NMTCDeal:
 
     @property
     def total_nmtcs(self) -> float:
-        """Total tax credits generated: 39% of QEI."""
-        return self.qei * 0.39
+        """Total tax credits: the §45D(a)(2) percentages summed over the seven
+        §45D(a)(3) allowance dates, which is 39% of QEI (stated as 39% only in
+        the IRS ATG). Derived from ``statute``, not typed."""
+        return self.qei * statute.TOTAL_CREDIT_RATE
 
     @property
     def investor_equity(self) -> float:

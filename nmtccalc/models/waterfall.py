@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
 
+from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
 
 
@@ -30,6 +31,8 @@ class WaterfallResult:
     net_year7_subsidy: float
     avg_dscr: Optional[float]
     min_dscr: Optional[float]
+    unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
+    in_recapture_period: bool = False
 
     def summary(self) -> pd.DataFrame:
         rows = []
@@ -50,11 +53,15 @@ class WaterfallResult:
         print("=" * 80)
         print(df.to_string(index=False))
         print()
-        print("Year 7 Unwind:")
+        print(f"Unwind at t={self.unwind_year}:")
         print(f"  B Loan Forgiven:  ${self.b_loan_forgiven:,.0f}")
         if self.exit_fee:
             print(f"  Exit Fee:         (${self.exit_fee:,.0f})")
         print(f"  Net Y7 Subsidy:   ${self.net_year7_subsidy:,.0f}")
+        if self.in_recapture_period:
+            print("  " + statute.recapture_disclosure(self.unwind_year))
+        elif self.unwind_year == statute.RECAPTURE_PERIOD_END_YEAR:
+            print("  " + statute.boundary_disclosure())
         if self.avg_dscr is not None:
             print(f"\nDSCR:  Avg {self.avg_dscr:.2f}x  |  Min {self.min_dscr:.2f}x")
         print()
@@ -69,6 +76,8 @@ class WaterfallResult:
             "net_year7_subsidy": self.net_year7_subsidy,
             "avg_dscr": self.avg_dscr,
             "min_dscr": self.min_dscr,
+            "unwind_year": self.unwind_year,
+            "in_recapture_period": self.in_recapture_period,
         }
 
 
@@ -76,9 +85,12 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     """
     Generate the year-by-year NMTC cash flow waterfall.
 
-    Models interest-only debt service on A and B loans during the 7-year
-    compliance period, with the year-7 unwind (B loan forgiveness, exit fees,
-    put/call exercise). DSCR is computed each year when noi is provided.
+    Models interest-only debt service on A and B loans for years 1 through
+    ``deal.unwind_year``, with the unwind in that year (B loan forgiveness,
+    exit fee, put/call exercise, QEI redemption). DSCR is computed each year
+    when noi is provided. The default unwind is t=7, the end of the 7-year
+    recapture period (§45D(g)(1)); an earlier unwind is inside it and is a
+    recapture event (§45D(g)(3)(C)).
 
     Guarantee fees (if any) are shown as a separate line item below debt
     service — they reduce net cash flow but are excluded from the DSCR
@@ -96,7 +108,8 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     guarantee_fee = deal.guarantee_fee_annual
 
     years = []
-    for yr in range(1, deal.compliance_years + 1):
+    k = deal.unwind_year
+    for yr in range(1, k + 1):
         dscr = (deal.noi / total_ds) if (deal.noi is not None and total_ds > 0) else None
         net_cf = (deal.noi - total_ds - guarantee_fee) if deal.noi is not None else None
 
@@ -109,8 +122,8 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
             dscr=dscr,
             guarantee_fee=guarantee_fee,
             net_cash_flow=net_cf,
-            b_loan_forgiven=deal.qlici_b_loan if yr == deal.compliance_years else 0.0,
-            exit_fee=deal.exit_fee if yr == deal.compliance_years else 0.0,
+            b_loan_forgiven=deal.qlici_b_loan if yr == k else 0.0,
+            exit_fee=deal.exit_fee if yr == k else 0.0,
         ))
 
     dscrs = [yr.dscr for yr in years if yr.dscr is not None]
@@ -118,10 +131,12 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     return WaterfallResult(
         project_name=deal.project_name,
         years=years,
-        total_interest_paid=total_ds * deal.compliance_years,
+        total_interest_paid=total_ds * k,
         b_loan_forgiven=deal.qlici_b_loan,
         exit_fee=deal.exit_fee,
         net_year7_subsidy=deal.qlici_b_loan - deal.exit_fee,
         avg_dscr=sum(dscrs) / len(dscrs) if dscrs else None,
         min_dscr=min(dscrs) if dscrs else None,
+        unwind_year=k,
+        in_recapture_period=statute.unwind_in_recapture_period(k),
     )
