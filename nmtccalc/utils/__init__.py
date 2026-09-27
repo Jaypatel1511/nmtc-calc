@@ -1,4 +1,3 @@
-import dataclasses
 import pandas as pd
 
 
@@ -23,7 +22,7 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
     rows = []
     for price in prices:
         try:
-            d = dataclasses.replace(deal, credit_price=price)
+            d = deal.with_credit_price(price)
         except NegativeTrancheError:
             rows.append({
                 "Credit Price": f"${price:.2f}",
@@ -73,7 +72,7 @@ def discount_rate_sensitivity(deal, rates=None) -> pd.DataFrame:
 
     rows = []
     for rate in rates:
-        d = dataclasses.replace(deal, discount_rate=rate)
+        d = deal.with_discount_rate(rate)
         cr = credits.schedule(d)
         rows.append({
             "Discount Rate": f"{rate * 100:.0f}%",

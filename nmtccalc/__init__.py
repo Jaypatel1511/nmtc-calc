@@ -1,5 +1,7 @@
-from nmtccalc.data.schema import NMTCDeal
-from nmtccalc.exceptions import LeverageShortfallWarning, NegativeTrancheError
+from nmtccalc.data.schema import NMTCDeal, Provenance, Basis
+from nmtccalc.exceptions import (
+    LeverageShortfallWarning, NegativeTrancheError, UnbalancedStackError,
+)
 from nmtccalc import statute
 from nmtccalc.models import transaction, credits, investor, subsidy, waterfall
 from nmtccalc import utils
@@ -14,4 +16,5 @@ except PackageNotFoundError:
 __all__ = [
     "NMTCDeal", "transaction", "credits", "investor", "subsidy", "waterfall", "utils",
     "statute", "LeverageShortfallWarning", "NegativeTrancheError",
+    "UnbalancedStackError", "Provenance", "Basis",
 ]

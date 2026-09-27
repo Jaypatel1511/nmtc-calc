@@ -18,3 +18,12 @@ class NegativeTrancheError(ValueError):
     A subclass of ValueError, so existing ``except ValueError`` handlers still
     catch it.
     """
+
+
+class UnbalancedStackError(ValueError):
+    """SUPPLIED capital-stack amounts do not reconcile, so the deal is refused.
+
+    Raised when both the A and B loan amounts are SUPPLIED and their sum
+    differs from QLICI total (QEI less the CDE fee) by more than the stated
+    tolerance.
+    """
