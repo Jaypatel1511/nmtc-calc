@@ -18,9 +18,23 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
     if prices is None:
         prices = [round(p / 100, 2) for p in range(70, 92, 2)]
 
+    from nmtccalc.exceptions import NegativeTrancheError
+
     rows = []
     for price in prices:
-        d = dataclasses.replace(deal, credit_price=price)
+        try:
+            d = dataclasses.replace(deal, credit_price=price)
+        except NegativeTrancheError:
+            rows.append({
+                "Credit Price": f"${price:.2f}",
+                "Equity ($MM)": "REFUSED",
+                "Leverage Loan ($MM)": "REFUSED",
+                "MOIC": "REFUSED",
+                "IRR": "REFUSED",
+                "Net Subsidy ($MM)": "REFUSED",
+                "Subsidy % of Cost": "REFUSED (negative tranche)",
+            })
+            continue
         inv = investor.analyze(d)
         sub = subsidy.analyze(d)
         rows.append({

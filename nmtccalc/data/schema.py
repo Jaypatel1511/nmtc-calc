@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from nmtccalc import statute
+from nmtccalc.exceptions import NegativeTrancheError
 
 
 @dataclass
@@ -54,6 +55,40 @@ class NMTCDeal:
             raise ValueError("guarantee_fee_rate must be non-negative")
         if self.exit_fee_rate < 0:
             raise ValueError("exit_fee_rate must be non-negative")
+        self._refuse_negative_tranches()
+
+    def _refuse_negative_tranches(self):
+        """Refuse any capital-stack tranche below zero, at construction.
+
+        A negative tranche is not a structure: a negative B loan produces
+        negative B-loan interest, which understates debt service and inflates
+        DSCR, and a negative "forgiveness" that renders as a subsidy.
+        """
+        tranches = (
+            ("investor_equity", self.investor_equity),
+            ("leverage_loan", self.leverage_loan),
+            ("qlici_total", self.qlici_total),
+            ("qlici_a_loan", self.qlici_a_loan),
+            ("qlici_b_loan", self.qlici_b_loan),
+        )
+        for name, amount in tranches:
+            if amount < 0:
+                detail = ""
+                if name == "qlici_b_loan":
+                    detail = (
+                        f" The CDE fee (${self.cde_fee:,.0f} = "
+                        f"{self.cde_fee_rate:.2%} of QEI) exceeds investor equity "
+                        f"(${self.investor_equity:,.0f} = "
+                        f"{statute.pct_label(statute.TOTAL_CREDIT_RATE)} of QEI x "
+                        f"{self.credit_price} credit price). With the B loan derived as "
+                        f"equity less fee, cde_fee_rate must not exceed "
+                        f"{statute.pct_label(statute.TOTAL_CREDIT_RATE)} x credit_price = "
+                        f"{statute.TOTAL_CREDIT_RATE * self.credit_price:.4f}."
+                    )
+                raise NegativeTrancheError(
+                    f"{name} would be ${amount:,.0f}; a negative tranche is refused."
+                    + detail
+                )
 
     @property
     def qei(self) -> float:
