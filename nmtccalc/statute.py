@@ -224,3 +224,34 @@ DEPLOYMENT_RATIO_NOTE = (
 
 def deployment_ratio_note() -> str:
     return DEPLOYMENT_RATIO_NOTE.format(cite=CITATION_SUBSTANTIALLY_ALL)
+
+
+# ── B-loan forgiveness and bona fide debt (IRS ATG) ──────────────────────────
+# Retrieved 2026-09-27: IRS, New Markets Tax Credit Audit Technique Guide
+# (LMSB-04-0510-016, May 2010), p. 17, under the heading "Intent to Forgive or
+# Otherwise Not Collect Debt". The two sentences below are quoted verbatim.
+
+CITATION_ATG_FORGIVENESS = (
+    "IRS NMTC Audit Technique Guide (May 2010), p. 17, "
+    "\"Intent to Forgive or Otherwise Not Collect Debt\""
+)
+ATG_BONA_FIDE_DEBT_QUOTE = (
+    "\"An essential element of bona fide debt is whether there exists a good-faith "
+    "intent on the part of the recipient of the funds to make repayment and a "
+    "good-faith intent on the part of the person advancing the funds to enforce "
+    "repayment.\" ... \"In some instances, as an exit strategy, the CDE may intend "
+    "to eventually forgive or otherwise not collect on the debt after the end of the "
+    "7-year credit period. If such an intention is reflected in a pre-arranged "
+    "feature; i.e., a statement in the loan documents that the lender will forgive "
+    "the loan, the loan is not bona fide debt for federal income tax purposes.\""
+)
+
+FORGIVENESS_NOTE = (
+    "B-loan forgiveness is a negotiated exit term of the deal documents; this "
+    "package does not treat it as a feature of the credit, so "
+    "b_loan_forgiveness_rate is an input with no default. The {cite} states: {quote}"
+)
+
+
+def forgiveness_note() -> str:
+    return FORGIVENESS_NOTE.format(cite=CITATION_ATG_FORGIVENESS, quote=ATG_BONA_FIDE_DEBT_QUOTE)

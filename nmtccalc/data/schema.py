@@ -38,7 +38,10 @@ _FLOAT_FIELDS = (
     "qlici_a_loan_rate", "qlici_b_loan_rate", "cde_fee_rate", "discount_rate",
     "guarantee_fee_rate", "exit_fee_rate",
 )
-_OPTIONAL_FLOAT_FIELDS = ("qlici_a_loan_amount", "qlici_b_loan_amount")
+_OPTIONAL_FLOAT_FIELDS = (
+    "qlici_a_loan_amount", "qlici_b_loan_amount",
+    "b_loan_forgiveness_rate", "qalicb_alternative_borrowing_rate",
+)
 
 
 def _is_finite_real(value) -> bool:
@@ -94,6 +97,15 @@ class NMTCDeal:
     # SUPPLIED A/B split, where real terms exist. None = DERIVED.
     qlici_a_loan_amount: Optional[float] = None
     qlici_b_loan_amount: Optional[float] = None
+    # Share of the B loan forgiven at unwind, 0..1. NO DEFAULT: forgiveness is
+    # a negotiated exit term, and the IRS ATG (p. 17) holds that forgiveness
+    # stated in the loan documents defeats bona fide debt. When None, every
+    # figure that depends on it is REFUSED; everything else still computes.
+    b_loan_forgiveness_rate: Optional[float] = None
+    # The QALICB's own alternative borrowing rate, for interest savings. When
+    # None, interest savings are REFUSED. (0.2.1 used the Investment Fund's
+    # leverage rate, the wrong entity's cost of capital.)
+    qalicb_alternative_borrowing_rate: Optional[float] = None
 
     def __post_init__(self):
         for name in _FLOAT_FIELDS:
@@ -123,6 +135,11 @@ class NMTCDeal:
         if not (0 < self.discount_rate < 1):
             raise ValueError("discount_rate must be between 0 and 1 (e.g. 0.08)")
         self._validate_noi()
+        if self.b_loan_forgiveness_rate is not None and not (0 <= self.b_loan_forgiveness_rate <= 1):
+            raise ValueError("b_loan_forgiveness_rate must be between 0 and 1 inclusive")
+        if self.qalicb_alternative_borrowing_rate is not None and \
+                not (0 <= self.qalicb_alternative_borrowing_rate < 1):
+            raise ValueError("qalicb_alternative_borrowing_rate must be at least 0 and below 1")
         if self.guarantee_fee_rate < 0:
             raise ValueError("guarantee_fee_rate must be non-negative")
         if self.exit_fee_rate < 0:

@@ -242,7 +242,7 @@ def test_with_methods_return_new_objects(sample_deal):
 
 
 def test_sweep_with_supplied_split_balances(sample_deal):
-    d = dataclasses.replace(sample_deal, qlici_a_loan_amount=6_500_000)
+    d = dataclasses.replace(sample_deal, qlici_a_loan_amount=6_500_000, b_loan_forgiveness_rate=1.0)
     df = utils.credit_price_sensitivity(d, prices=[0.75, 0.90])
     # Net subsidy is the B loan: held at 3.30MM across the sweep because it is SUPPLIED-balanced.
     assert list(df["Net Subsidy ($MM)"]) == [3.3, 3.3]

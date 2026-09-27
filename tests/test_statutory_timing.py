@@ -254,7 +254,8 @@ def test_investor_to_dict(sample_deal):
 # ── waterfall and sweep ──────────────────────────────────────────────────────
 
 def test_waterfall_unwinds_at_unwind_year(sample_deal):
-    r = waterfall.analyze(dataclasses.replace(sample_deal, unwind_year=4, noi=600_000))
+    r = waterfall.analyze(dataclasses.replace(sample_deal, unwind_year=4, noi=600_000,
+                                              b_loan_forgiveness_rate=1.0))
     assert [y.year for y in r.years] == [1, 2, 3, 4]
     assert r.years[-1].b_loan_forgiven == pytest.approx(3_037_000)
     assert all(y.b_loan_forgiven == 0 for y in r.years[:-1])
@@ -314,7 +315,7 @@ def test_total_nmtcs_literal(sample_deal):
 
 
 def test_waterfall_unwind_label_follows_unwind_year(sample_deal, capsys):
-    waterfall.analyze(dataclasses.replace(sample_deal, unwind_year=4)).summary()
+    waterfall.analyze(dataclasses.replace(sample_deal, unwind_year=4, b_loan_forgiveness_rate=1.0)).summary()
     out = capsys.readouterr().out
     assert "Net Subsidy at Unwind (t=4): $3,037,000" in out
     assert "Y7" not in out

@@ -7,6 +7,7 @@ import pandas as pd
 from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
 from nmtccalc.exceptions import LeverageShortfallWarning
+from nmtccalc.models.subsidy import REFUSED_FORGIVENESS
 
 
 FUND_LINE_DISCLOSURE = (
@@ -51,7 +52,7 @@ class WaterfallYear:
     dscr: Optional[float]
     guarantee_fee: float
     net_cash_flow: Optional[float]
-    b_loan_forgiven: float = 0.0
+    b_loan_forgiven: Optional[float] = 0.0   # None in the unwind year when the forgiveness rate is not supplied
     exit_fee: float = 0.0
     # Investment Fund level (leverage loan)
     leverage_loan_interest: float = 0.0
@@ -73,9 +74,9 @@ class WaterfallResult:
     project_name: str
     years: list
     total_interest_paid: float
-    b_loan_forgiven: float
+    b_loan_forgiven: Optional[float]
     exit_fee: float
-    net_year7_subsidy: float
+    net_subsidy_at_unwind: Optional[float]
     avg_dscr: Optional[float]
     min_dscr: Optional[float]
     dscr_varies: bool = False
@@ -125,10 +126,16 @@ class WaterfallResult:
         print(f"  {FUND_LINE_DISCLOSURE}")
         print()
         print(f"Unwind at t={self.unwind_year}:")
-        print(f"  B Loan Forgiven:  ${self.b_loan_forgiven:,.0f}")
+        if self.b_loan_forgiven is None:
+            print(f"  B Loan Forgiven:  {REFUSED_FORGIVENESS}")
+        else:
+            print(f"  B Loan Forgiven:  ${self.b_loan_forgiven:,.0f}")
         if self.exit_fee:
             print(f"  Exit Fee:         (${self.exit_fee:,.0f})")
-        print(f"  Net Subsidy at Unwind (t={self.unwind_year}): ${self.net_year7_subsidy:,.0f}")
+        if self.net_subsidy_at_unwind is None:
+            print(f"  Net Subsidy at Unwind (t={self.unwind_year}): {REFUSED_FORGIVENESS}")
+        else:
+            print(f"  Net Subsidy at Unwind (t={self.unwind_year}): ${self.net_subsidy_at_unwind:,.0f}")
         if self.in_recapture_period:
             print("  " + statute.recapture_disclosure(self.unwind_year))
         elif self.unwind_year == statute.RECAPTURE_PERIOD_END_YEAR:
@@ -149,7 +156,7 @@ class WaterfallResult:
             "total_interest_paid": self.total_interest_paid,
             "b_loan_forgiven": self.b_loan_forgiven,
             "exit_fee": self.exit_fee,
-            "net_year7_subsidy": self.net_year7_subsidy,
+            "net_subsidy_at_unwind": self.net_subsidy_at_unwind,
             "avg_dscr": self.avg_dscr,
             "min_dscr": self.min_dscr,
             "dscr_varies": self.dscr_varies,
@@ -173,7 +180,8 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     Generate the year-by-year NMTC cash flow waterfall.
 
     Models interest-only debt service on A and B loans for years 1 through
-    ``deal.unwind_year``, with the unwind in that year (B loan forgiveness,
+    ``deal.unwind_year``, with the unwind in that year (B loan forgiveness at
+    ``deal.b_loan_forgiveness_rate`` -- REFUSED when not supplied --
     exit fee, put/call exercise, QEI redemption). DSCR is computed each year
     when noi is provided. The default unwind is t=7, the end of the 7-year
     recapture period (§45D(g)(1)); an earlier unwind is inside it and is a
@@ -205,6 +213,8 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     fund_net = fund_qlici_interest - lev_interest
 
     k = deal.unwind_year
+    rate = deal.b_loan_forgiveness_rate
+    forgiven = deal.qlici_b_loan * rate if rate is not None else None
     schedule = deal.noi_schedule
     years = []
     for yr in range(1, k + 1):
@@ -221,7 +231,7 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
             dscr=dscr,
             guarantee_fee=guarantee_fee,
             net_cash_flow=net_cf,
-            b_loan_forgiven=deal.qlici_b_loan if yr == k else 0.0,
+            b_loan_forgiven=forgiven if yr == k else 0.0,
             exit_fee=deal.exit_fee if yr == k else 0.0,
             leverage_loan_interest=lev_interest,
             fund_qlici_interest=fund_qlici_interest,
@@ -255,9 +265,9 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
         project_name=deal.project_name,
         years=years,
         total_interest_paid=total_ds * k,
-        b_loan_forgiven=deal.qlici_b_loan,
+        b_loan_forgiven=forgiven,
         exit_fee=deal.exit_fee,
-        net_year7_subsidy=deal.qlici_b_loan - deal.exit_fee,
+        net_subsidy_at_unwind=forgiven - deal.exit_fee if forgiven is not None else None,
         avg_dscr=sum(dscrs) / len(dscrs) if dscrs else None,
         dscr_varies=dscr_varies,
         noi_is_series=deal.noi_is_series,

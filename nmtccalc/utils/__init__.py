@@ -42,8 +42,9 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
             "Leverage Loan ($MM)": round(d.leverage_loan / 1e6, 2),
             "MOIC": round(inv.moic, 3) if inv.moic is not None else "REFUSED",
             "IRR": f"{inv.irr * 100:.1f}%" if inv.irr is not None else "REFUSED",
-            "Net Subsidy ($MM)": round(sub.net_subsidy / 1e6, 2),
-            "Subsidy % of Cost": f"{sub.net_subsidy_pct * 100:.1f}%",
+            "Net Subsidy ($MM)": round(sub.net_subsidy / 1e6, 2) if sub.net_subsidy is not None else "REFUSED",
+            "Subsidy % of Cost": (f"{sub.net_subsidy_pct * 100:.1f}%" if sub.net_subsidy_pct is not None
+                                  else "REFUSED (no forgiveness rate)"),
         })
 
     df = pd.DataFrame(rows)
