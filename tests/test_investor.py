@@ -8,10 +8,13 @@ def test_moic_positive(sample_deal):
     assert result.moic > 0
 
 
-def test_moic_math(sample_deal):
+def test_moic_literal_value(sample_deal):
+    # Replaces test_moic_math, a tautology: it computed the expectation from
+    # the same two properties the implementation divides, so it could not fail
+    # for any input and would go red on any correction. The expectation here
+    # is from literals: credits retained 3,900,000 / equity paid 3,237,000.
     result = investor.analyze(sample_deal)
-    expected_moic = sample_deal.total_nmtcs / sample_deal.investor_equity
-    assert result.moic == pytest.approx(expected_moic)
+    assert result.moic == pytest.approx(3_900_000 / 3_237_000, abs=1e-12)
 
 
 def test_gross_benefit_equals_total_nmtcs(sample_deal):
