@@ -1,0 +1,53 @@
+# docs-check configuration for nmtc-calc.
+#
+# tools/docs_check.py is copied VERBATIM from nmtc-mapper (main at cffce8f,
+# sha256 recorded in the adopting commit). Adoption is a file copy plus this
+# config, as the tool was designed. Do not edit tools/docs_check.py here; fix it
+# upstream and re-copy.
+
+[package]
+import_name = "nmtccalc"
+readme = "README.md"
+# Assertion 6: every name in __all__ must appear somewhere in the README.
+require_all_documented = true
+
+[expected]
+dir = "docs/README.expected"
+
+[tests]
+path = "tests"
+# total -- "349 tests, run in CI on Python 3.9-3.12."
+claim_pattern = '^(\d+)\s+tests\b'
+# No live/offline/repo claims: this suite has no network tests and no
+# repository-only marker, and the README states no such split. The keys are
+# ABSENT, which is the statement "no such claim".
+
+[denylist]
+file = "docs-check-denylist.txt"
+targets = ["README.md", "pyproject.toml", "setup.py"]
+
+# ---------------------------------------------------------------------------
+# WHAT THIS GATE ASSERTS, AND WHAT IT DOES NOT
+#
+# IT ASSERTS:
+#   1. Every README block marked 'run' produces exactly its committed stdout.
+#   2. Every symbol a README block names as importable actually imports.
+#   3. The README's test count matches what pytest collects.
+#   4. No retired claim from the denylist survives in README.md or pyproject's
+#      [project].description / .keywords (this repo has no setup.py).
+#   5. The package under test resolved out of site-packages, not the checkout.
+#   6. Every name in __all__ appears somewhere in the README.
+#
+# IT DOES NOT ASSERT:
+#   * PROSE CLAIMS -- the rule table, the list of what the model does not do,
+#     the statutory citations. Those are checked by the test suite where they
+#     are code (tests/test_statutory_timing.py, test_deployment_ratio.py,
+#     test_conventions.py) and by a human where they are prose.
+#   * INSTANCE ATTRIBUTES -- deal.basis, result.summary(), .credit_only_irr are
+#     executed by the two run blocks, but a renamed attribute used only in a
+#     skipped block would not be caught. There is no skipped Python block.
+#   * .summary() tables -- not diffed (pandas column widths are
+#     version-dependent); the run blocks print explicit figures instead.
+#
+# ---------------------------------------------------------------------------
+# Known failures: none. An entry that starts passing fails the gate.

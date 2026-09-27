@@ -1,88 +1,219 @@
-# nmtc-calc 🏗️
+# nmtc-calc
 
-**Python calculator for New Markets Tax Credit (NMTC) leveraged transactions.**
+**A correct pedagogical model of a simplified single-CDE New Markets Tax Credit
+(NMTC) leveraged structure — not a deal tool.**
 
-Built for CDFI practitioners, CDEs, tax credit investors, and project sponsors who need
-reproducible, auditable NMTC deal math — without starting from scratch in Excel.
+`nmtc-calc` models one CDE, one qualified equity investment (QEI), a two-source
+Investment Fund (investor equity plus one leverage loan), an interest-only A/B
+QLICI loan pair, and an unwind. That is enough to learn how the credit schedule,
+the capital stack, the leverage loan and the QALICB's subsidy relate to each
+other, and to see how they move. Essentially no NMTC deal of consequence is
+single-CDE, and the model leaves out much of what a real closing depends on (see
+[What this model does not do](#what-this-model-does-not-do)). Use it to
+understand a structure, not to price or underwrite one.
 
----
+Every figure it prints says where it came from: **SUPPLIED** by you, or
+**DERIVED** by a stated rule. Figures it cannot honestly compute are **REFUSED**
+with a reason, and everything else still renders.
 
-## Why nmtc-calc?
-
-New Markets Tax Credit transactions involve complex layered capital structures — QEIs,
-QLICIs, leverage loans, 7-year credit schedules, investor IRR, and net subsidy calculations.
-Every practitioner builds these models from scratch in Excel. nmtc-calc standardizes
-and automates the math.
-
----
+Part of the [CDFI Superpowers](https://jaypatel1511.github.io/cdfi-superpowers/)
+portfolio of open-source tools for community development finance.
 
 ## Installation
 
-    pip install nmtc-calc
-
----
+```bash
+# docs-check: skip shell installation command, not executable Python
+pip install nmtc-calc
+```
 
 ## Quickstart
 
-    from nmtccalc import NMTCDeal, transaction, credits, investor, subsidy
+```python
+# docs-check: run quickstart
+from nmtccalc import NMTCDeal, transaction, credits, investor, subsidy, waterfall
 
-    deal = NMTCDeal(
-        project_name="Southside Community Health Center",
-        total_project_cost=10_000_000,
-        nmtc_allocation=10_000_000,
-        credit_price=0.83,
-        leverage_loan_rate=0.045,
-        qlici_a_loan_rate=0.045,
-        qlici_b_loan_rate=0.010,
-        cde_fee_rate=0.02,
-        discount_rate=0.08,
-    )
+deal = NMTCDeal(
+    project_name="Southside Community Health Center",
+    total_project_cost=12_000_000,
+    nmtc_allocation=10_000_000,          # QEI
+    credit_price=0.83,
+    leverage_loan_rate=0.045,
+    qlici_a_loan_rate=0.045,
+    qlici_b_loan_rate=0.010,
+    cde_fee_rate=0.02,
+    noi=[520_000, 560_000, 600_000, 620_000, 640_000, 660_000, 680_000],
+    b_loan_forgiveness_rate=1.0,          # a negotiated term: no default
+    qalicb_alternative_borrowing_rate=0.07,
+)
 
-    transaction.structure(deal).summary()
-    credits.schedule(deal).summary()
-    investor.analyze(deal).summary()
-    subsidy.analyze(deal).summary()
+tx = transaction.structure(deal)
+cr = credits.schedule(deal)
+inv = investor.analyze(deal)
+sub = subsidy.analyze(deal)
+wf = waterfall.analyze(deal)
 
----
+print(f"Investor equity:        ${tx.investor_equity:,.0f}  ({deal.basis['investor_equity'].label()})")
+print(f"Leverage loan:          ${tx.leverage_loan:,.0f}")
+print(f"A / B loans:            ${tx.qlici_a_loan:,.0f} / ${tx.qlici_b_loan:,.0f}")
+print(f"Deployment at closing:  {tx.closing_qlici_deployment_ratio:.1%} of QEI  (substantially-all test: {tx.substantially_all_test})")
+print(f"Allowance dates:        {cr.allowance_years}")
+print(f"PV of credits @ 8%:     ${cr.pv_credits:,.0f}")
+print(f"Credit-only IRR / MOIC: {inv.credit_only_irr:.2%} / {inv.credit_only_moic:.3f}x")
+print(f"Net subsidy at unwind:  ${sub.net_subsidy:,.0f}")
+print(f"Interest savings:       ${sub.interest_savings_to_unwind:,.0f} over {sub.unwind_year} years")
+print(f"Blended QLICI coupon:   {sub.blended_qlici_coupon:.2%}")
+print(f"DSCR by year:           {[round(y.dscr, 2) for y in wf.years]}  (varies: {wf.dscr_varies})")
+print(f"Fund shortfall / year:  ${wf.annual_fund_shortfall:,.0f}  (leverage serviced: {wf.leverage_serviced})")
+```
 
-## Modules
+Every result object also has `.summary()`, which prints a table with its
+disclosures, and `.to_dict()`.
 
-- transaction — QEI, NMTCs, investor equity, leverage loan, QLICI A/B split
-- credits — 7-year credit schedule (5/5/5/6/6/6/6%), PV of credits
-- investor — Investor IRR, MOIC, gross/net benefit
-- subsidy — Net subsidy to QALICB, effective cost of capital, interest savings
+## What each module computes
 
----
+### `transaction` — the capital stack
 
-## Key NMTC Concepts
+`transaction.structure(deal)` returns the stack: QEI, total NMTCs, investor
+equity, leverage loan, CDE fee, QLICI total, and the A and B loans, each with its
+basis. By default everything after your inputs is DERIVED — a screening model:
 
-- QEI: Qualified Equity Investment into the CDE
-- QLICI: Qualified Low-Income Community Investment (loans to QALICB)
-- QALICB: Qualified Active Low-Income Community Business (project borrower)
-- CDE: Community Development Entity (allocatee of NMTC authority)
-- A Loan: Senior QLICI mirroring the leverage loan
-- B Loan: Subordinate QLICI, typically forgiven at year 7
-- Credit Price: dollars per dollar of NMTC benefit (typically 0.70-0.85)
+| Figure | Rule |
+|---|---|
+| Total NMTCs | 39% × QEI — the §45D(a)(2) percentages over the §45D(a)(3) allowance dates; the 39% total is cited to the IRS NMTC Audit Technique Guide, not to the statute |
+| Investor equity | total NMTCs × credit price |
+| Leverage loan | QEI − investor equity (two-source fund) |
+| QLICI total | QEI − CDE fee |
+| A loan | mirrors the leverage loan |
+| B loan | investor equity − CDE fee |
 
----
+Where real terms exist, supply the A/B split with `qlici_a_loan_amount` and/or
+`qlici_b_loan_amount`; the other tranche is DERIVED as the balance, and two
+supplied amounts must reconcile to QLICI total. `deal.provenance` and
+`deal.basis` expose the label for every figure, as `Provenance` and `Basis`
+objects.
 
-## Running Tests
+It also reports the **closing-date QLICI deployment ratio** (QLICI total / QEI at
+face). That is *not* the substantially-all test of 26 CFR §1.45D-1(c)(5), which
+the package **refuses** to compute and says why: the 85% is regulatory, the
+numerator is §1012 cost basis, there are two tests with different denominators,
+it is not testable at closing, and the threshold is 75% in year seven.
 
-    PYTHONPATH=. pytest tests/ -v
+`leverage_loan_to_equity_ratio` depends on the credit price alone and is
+disclosed as such.
 
-32 tests across all modules.
+### `credits` — the statutory credit schedule
 
----
+`credits.schedule(deal)` places the seven credits on the **statutory credit
+allowance dates**, t = 0 (the QEI date) through t = 6 (26 U.S.C. §45D(a)(3)): 5%
+of QEI on the first three, 6% on the remaining four. The first credit falls on
+the day the equity is paid and is not discounted.
 
-## Who This Is For
+### `investor` — credit-only returns
 
-- CDEs structuring NMTC allocations for projects
-- Tax credit investors evaluating deal economics
-- Project sponsors understanding subsidy and cost of capital
-- CDFI analysts modeling NMTC transactions in IC memos
+`investor.analyze(deal)` reports `credit_only_irr` and `credit_only_moic`. The
+cash flows are the equity paid and the credits received **and nothing else**, so
+both figures depend on the credit price alone (credit-only MOIC = 1 / credit
+price). They are labelled credit-only, disclosed as such on every summary, and
+are not an investor IRR.
 
----
+### `subsidy` — the QALICB's side
+
+`subsidy.analyze(deal)` reports the B loan forgiven at unwind
+(`b_loan_forgiveness_rate` × B loan), the net subsidy (less the exit fee), the
+`blended_qlici_coupon`, and `interest_savings_to_unwind` against the QALICB's
+own `qalicb_alternative_borrowing_rate`. **Neither rate has a default.** B-loan
+forgiveness is a negotiated exit term, and the IRS NMTC Audit Technique Guide
+(p. 17) holds that a loan whose documents state it will be forgiven is not bona
+fide debt. Leave either rate out and the deal still constructs and renders; only
+the figures that depend on it are REFUSED.
+
+### `waterfall` — cash flow, DSCR and the leverage loan
+
+`waterfall.analyze(deal)` runs years 1 to `unwind_year`: NOI (one number, or a
+series with one entry per year), interest-only A/B debt service, DSCR, net cash
+flow, and the unwind. `dscr_varies` says whether DSCR changes over the years; a
+flat NOI is reported as one stabilized figure, not a schedule.
+
+It also **services the leverage loan** at the Investment Fund level and
+reconciles it against the QLICI interest reaching the fund and the A-loan
+principal repaid at unwind. A structure that cannot fund its leverage loan
+raises a `LeverageShortfallWarning`.
+
+Whether guarantee fees enter the DSCR denominator is a **house election**
+(`include_guarantee_fee_in_dscr`, default False = excluded, which makes DSCR
+higher); it is disclosed on every summary, not attributed to any authority.
+
+### `utils` — sensitivity sweeps
+
+`utils.credit_price_sensitivity(deal)` and `utils.discount_rate_sensitivity(deal)`
+sweep one input using `deal.with_credit_price()` / `deal.with_discount_rate()`,
+which re-derive DERIVED figures, hold SUPPLIED ones and re-run every check. A
+price at which a tranche would go negative renders a REFUSED row. The
+credit-only MOIC and IRR columns are the same for every deal at the same prices,
+and the table says so.
+
+### `statute` — the law, retrieved
+
+`nmtccalc.statute` holds the schedule, the 7-year period, the recapture rules and
+the substantially-all refusal reasons, each quoted from the provision it comes
+from.
+
+## An unwind inside the recapture period
+
+The 7-year credit period and recapture period both run from the QEI date to
+t = 7 (26 U.S.C. §45D(g)(1); 26 CFR §1.45D-1(c)(5)(i)). The last credit is at
+t = 6, so the final year carries full recapture exposure after the last credit
+is earned. Redemption of the QEI is a recapture event (§45D(g)(3)(C)).
+
+```python
+# docs-check: run recapture
+from nmtccalc import NMTCDeal, credits, investor
+
+deal = NMTCDeal(
+    project_name="Early Exit", total_project_cost=10_000_000,
+    nmtc_allocation=10_000_000, credit_price=0.83, leverage_loan_rate=0.045,
+    qlici_a_loan_rate=0.045, qlici_b_loan_rate=0.010, cde_fee_rate=0.02,
+    unwind_year=4,
+)
+cr = credits.schedule(deal)
+inv = investor.analyze(deal)
+print(cr.statuses)
+print(f"Net credits retained: ${cr.net_credits_retained:,.0f}")
+print(f"Net benefit: ${inv.net_benefit:,.0f}")
+print(inv.credit_only_irr, inv.credit_only_moic)
+```
+
+## Refusals, warnings and errors
+
+| Name | When |
+|---|---|
+| `NegativeTrancheError` | construction would produce a negative tranche (e.g. `cde_fee_rate` > 39% × `credit_price` with the B loan derived) |
+| `UnbalancedStackError` | a SUPPLIED A and B loan do not add up to QLICI total |
+| `LeverageShortfallWarning` | the fund's QLICI interest does not cover leverage interest, or the A-loan principal does not cover the leverage principal |
+| REFUSED figures | credit-only IRR/MOIC inside the recapture period; net subsidy without a forgiveness rate; interest savings without a QALICB rate; the substantially-all test always |
+
+## What this model does not do
+
+Multi-CDE structures; tax and state credits; historic tax credits; ongoing CDE or
+sub-CDE fees; fund-level taxable income, the put or disposition value, and exit
+taxes in any return; §45D(h) basis reduction and the §38 tax-capacity limit;
+the reinvestment rule as an ongoing obligation; tax on cancellation-of-debt
+income from a forgiven B loan; the day-level boundary at the seventh
+anniversary; sub-annual cash timing (credits are placed on their statutory dates;
+the investor's cash realization lag is not modeled).
+
+## Tests and gates
+
+349 tests, run in CI on Python 3.9–3.12.
+
+```bash
+# docs-check: skip shell commands; CI runs these, not this gate
+pytest tests/                              # the suite, from a checkout
+python tools/check_sdist.py                # the sdist ships and passes its own suite
+python tools/mutation_gate.py              # mutation testing, floor derived from the baseline
+python tools/docs_check.py --root .        # this README against the installed wheel
+```
 
 ## License
 
-MIT 2026 Jaypatel1511
+MIT — see [LICENSE](LICENSE).

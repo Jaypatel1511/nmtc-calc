@@ -1,0 +1,4 @@
+['RECAPTURED', 'RECAPTURED', 'RECAPTURED', 'RECAPTURED', 'NOT ALLOWABLE', 'NOT ALLOWABLE', 'NOT ALLOWABLE']
+Net credits retained: $0
+Net benefit: $-3,237,000
+None None
