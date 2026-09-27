@@ -1,0 +1,23 @@
+# setuptools' legacy sdist default matches only tests/test*.py, so without this
+# file tests/conftest.py never reaches the tarball and every fixture-dependent
+# test errors at setup. That is what the published 0.2.1 sdist did: 52 of its 53
+# tests error with "fixture 'sample_deal' not found" (methodology audit §3.5).
+# tools/check_sdist.py is the gate that keeps this file honest; it installs the
+# built tarball and runs the suite that shipped inside it.
+recursive-include tests *.py
+
+include README.md
+include CHANGELOG.md
+include CONTRIBUTING.md
+include LICENSE
+include pyproject.toml
+
+# Repository tools ship too, so the tarball can re-run the gates that certified
+# it (the mutation gate's own logic tests run from the sdist).
+recursive-include tools *.py *.json
+include docs-check.toml
+include docs-check-denylist.txt
+recursive-include docs/README.expected *.txt
+
+global-exclude *.pyc
+global-exclude __pycache__/*
