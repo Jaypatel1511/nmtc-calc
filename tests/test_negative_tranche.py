@@ -53,7 +53,7 @@ def test_sweep_degrades_the_row_not_the_table():
     d = NMTCDeal(**BASE, cde_fee_rate=0.30)
     # 0.30 > 0.39p for p < 0.7692: 0.70..0.76 refused, 0.78+ computed
     df = utils.credit_price_sensitivity(d)
-    refused = list(df["IRR"] == "REFUSED")
+    refused = list(df["Credit-only IRR"] == "REFUSED")
     assert refused == [True] * 4 + [False] * 7
     assert df.iloc[0]["Subsidy % of Cost"] == "REFUSED (negative tranche)"
     assert df.iloc[0]["Equity ($MM)"] == "REFUSED"

@@ -8,6 +8,17 @@ from nmtccalc.data.schema import NMTCDeal
 
 REFUSED = "REFUSED"
 
+CREDIT_ONLY_NOTE = (
+    "CREDIT-ONLY: these cash flows are the equity paid and the credits received, "
+    "and nothing else: no fund-level taxable income or tax drag, no put or "
+    "disposition value, no exit tax, no sub-annual timing, no §45D(h) basis "
+    "reduction, no §38 tax-capacity limit. Investor equity is always total NMTCs x "
+    "credit price, so every flow is proportional to QEI and both figures depend on "
+    "the credit price ALONE: credit-only MOIC = 1 / credit price, and two deals "
+    "at the same price report the same credit-only IRR whatever their size, rates "
+    "or fees. They are not an investor IRR or MOIC."
+)
+
 REFUSAL_RECAPTURE = (
     "REFUSED: the unwind at t={k} is inside the 7-year recapture period, so every "
     "credit is recaptured (plus nondeductible interest this package does not "
@@ -25,9 +36,11 @@ REFUSAL_NO_SIGN_CHANGE = (
 class InvestorResult:
     """Output object from investor economics analysis.
 
-    ``irr`` and ``moic`` are None when refused; ``refused_reason`` then says
-    why. Both are refused when the unwind is inside the recapture period;
-    ``irr`` alone is refused when the flows have no sign change. ``cash_flows[t]`` is the investor's net flow at t years after the QEI
+    ``credit_only_irr`` and ``credit_only_moic`` are None when refused;
+    ``refused_reason`` then says why. Both are refused when the unwind is
+    inside the recapture period; the IRR alone is refused when the flows have
+    no sign change. They are CREDIT-ONLY figures, not an investor IRR/MOIC:
+    see ``CREDIT_ONLY_NOTE``. ``cash_flows[t]`` is the investor's net flow at t years after the QEI
     date: the equity outflow and the first credit are both at t=0.
     """
     project_name: str
@@ -37,8 +50,8 @@ class InvestorResult:
     credit_price: float
     gross_benefit: float
     net_benefit: float
-    irr: Optional[float]
-    moic: Optional[float]
+    credit_only_irr: Optional[float]
+    credit_only_moic: Optional[float]
     net_credits_retained: float = 0.0
     unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
     in_recapture_period: bool = False
@@ -68,12 +81,13 @@ class InvestorResult:
         print(f"  NET CREDITS RETAINED: ${self.net_credits_retained:,.0f}")
         print(f"  Gross Benefit:        ${self.gross_benefit:,.0f}")
         print(f"  Net Benefit:          ${self.net_benefit:,.0f}")
-        print(f"  MOIC:                 "
-              f"{f'{self.moic:.2f}x' if self.moic is not None else REFUSED}")
-        print(f"  IRR:                  "
-              f"{f'{self.irr*100:.1f}%' if self.irr is not None else REFUSED}")
+        print(f"  Credit-only MOIC:     "
+              f"{f'{self.credit_only_moic:.2f}x' if self.credit_only_moic is not None else REFUSED}")
+        print(f"  Credit-only IRR:      "
+              f"{f'{self.credit_only_irr*100:.1f}%' if self.credit_only_irr is not None else REFUSED}")
         if self.refused_reason:
             print(f"  {self.refused_reason}")
+        print("  " + CREDIT_ONLY_NOTE)
         print("  " + statute.timing_convention_disclosure())
         if self.in_recapture_period:
             print("  " + statute.recapture_disclosure(self.unwind_year))
@@ -88,8 +102,8 @@ class InvestorResult:
             "credit_price": self.credit_price,
             "gross_benefit": self.gross_benefit,
             "net_benefit": self.net_benefit,
-            "irr": self.irr,
-            "moic": self.moic,
+            "credit_only_irr": self.credit_only_irr,
+            "credit_only_moic": self.credit_only_moic,
             "net_credits_retained": self.net_credits_retained,
             "unwind_year": self.unwind_year,
             "in_recapture_period": self.in_recapture_period,
@@ -146,9 +160,11 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
     allowance dates t=0..6 (§45D(a)(3)). The first credit falls on the QEI
     date, so the t=0 cash flow is the equity outflow plus the first credit.
 
-    These cash flows carry the equity and the credits only. With the capital
-    stack derived from the credit price, every flow is proportional to QEI, so
-    ``irr`` and ``moic`` depend on the credit price alone.
+    These cash flows carry the equity and the credits only, so the results are
+    named ``credit_only_irr`` / ``credit_only_moic``. Investor equity is always
+    total NMTCs x credit price, so every flow is proportional to QEI and both
+    figures depend on the credit price alone (MOIC = 1 / credit price). The
+    disclosure ``CREDIT_ONLY_NOTE`` renders with every summary.
 
     When ``deal.unwind_year`` is inside the 7-year recapture period, every
     credit is recaptured (§45D(g)(3)(C), §45D(g)(2)): ``net_credits_retained``
@@ -197,8 +213,8 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
         credit_price=deal.credit_price,
         gross_benefit=gross_benefit,
         net_benefit=net_benefit,
-        irr=irr,
-        moic=moic,
+        credit_only_irr=irr,
+        credit_only_moic=moic,
         net_credits_retained=retained,
         unwind_year=deal.unwind_year,
         in_recapture_period=in_period,

@@ -1,9 +1,20 @@
 import pandas as pd
 
 
+SWEEP_INVARIANCE_NOTE = (
+    "The Credit-only MOIC and Credit-only IRR columns depend on the credit price "
+    "ALONE: they are the same for every deal at the same prices, whatever its size, "
+    "rates or fees (MOIC = 1 / price). They are a lookup table of the credit price, "
+    "not this deal's investor returns. Equity and leverage scale with QEI; net "
+    "subsidy depends on the A/B split, the fee and the forgiveness rate."
+)
+
+
 def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
     """
-    Sweep credit_price and show investor IRR, MOIC, equity, and net subsidy.
+    Sweep credit_price and show equity, leverage, credit-only MOIC/IRR, and net
+    subsidy. The credit-only columns are deal-invariant; SWEEP_INVARIANCE_NOTE
+    renders with the table.
 
     Args:
         deal: NMTCDeal base case
@@ -28,8 +39,8 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
                 "Credit Price": f"${price:.2f}",
                 "Equity ($MM)": "REFUSED",
                 "Leverage Loan ($MM)": "REFUSED",
-                "MOIC": "REFUSED",
-                "IRR": "REFUSED",
+                "Credit-only MOIC": "REFUSED",
+                "Credit-only IRR": "REFUSED",
                 "Net Subsidy ($MM)": "REFUSED",
                 "Subsidy % of Cost": "REFUSED (negative tranche)",
             })
@@ -40,8 +51,9 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
             "Credit Price": f"${price:.2f}",
             "Equity ($MM)": round(d.investor_equity / 1e6, 2),
             "Leverage Loan ($MM)": round(d.leverage_loan / 1e6, 2),
-            "MOIC": round(inv.moic, 3) if inv.moic is not None else "REFUSED",
-            "IRR": f"{inv.irr * 100:.1f}%" if inv.irr is not None else "REFUSED",
+            "Credit-only MOIC": round(inv.credit_only_moic, 3) if inv.credit_only_moic is not None else "REFUSED",
+            "Credit-only IRR": (f"{inv.credit_only_irr * 100:.1f}%" if inv.credit_only_irr is not None
+                                else "REFUSED"),
             "Net Subsidy ($MM)": round(sub.net_subsidy / 1e6, 2) if sub.net_subsidy is not None else "REFUSED",
             "Subsidy % of Cost": (f"{sub.net_subsidy_pct * 100:.1f}%" if sub.net_subsidy_pct is not None
                                   else "REFUSED (no forgiveness rate)"),
@@ -51,6 +63,8 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
     print(f"\nCredit Price Sensitivity — {deal.project_name}")
     print("=" * 75)
     print(df.to_string(index=False))
+    print()
+    print(SWEEP_INVARIANCE_NOTE)
     print()
     return df
 

@@ -48,7 +48,7 @@ def test_forgiveness_omitted_refuses_only_dependents(sample_deal):
     assert r.b_loan_forgiven is None and r.net_subsidy is None and r.net_subsidy_pct is None
     assert r.refused["net_subsidy"] == REFUSED_FORGIVENESS
     assert r.refused["b_loan_forgiven"] == REFUSED_FORGIVENESS
-    assert r.effective_cost_of_capital == pytest.approx(
+    assert r.blended_qlici_coupon == pytest.approx(
         (6_763_000 * 0.045 + 3_037_000 * 0.01) / 9_800_000)
 
 
@@ -139,7 +139,7 @@ def test_summary_blended_coupon_row(full):
     df = subsidy.analyze(full).summary()
     v = dict(zip(df["Item"], df["Value"]))
     # 334,705 / 9,800,000 = 3.4154%
-    assert v["Effective Cost of Capital"] == "3.42%"
+    assert v["Blended QLICI Coupon"] == "3.42%"
 
 
 def test_summary_omitted_inputs_render_refused(sample_deal, capsys):

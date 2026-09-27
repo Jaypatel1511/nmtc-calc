@@ -158,7 +158,7 @@ def test_credit_to_dict_carries_timing(sample_deal):
 def test_irr_on_statutory_dates(sample_deal, price, expected):
     # Independent bisection on [-0.39*QEI*p + 500000, 500000, 500000, 600000 x4].
     r = investor.analyze(dataclasses.replace(sample_deal, credit_price=price))
-    assert r.irr == pytest.approx(expected, abs=1e-9)
+    assert r.credit_only_irr == pytest.approx(expected, abs=1e-9)
 
 
 def test_cash_flows_net_equity_and_first_credit_at_t0(sample_deal):
@@ -169,14 +169,14 @@ def test_cash_flows_net_equity_and_first_credit_at_t0(sample_deal):
 
 def test_moic_literal(sample_deal):
     # 3,900,000 / 3,237,000
-    assert investor.analyze(sample_deal).moic == pytest.approx(1.2048192771084338, abs=1e-12)
+    assert investor.analyze(sample_deal).credit_only_moic == pytest.approx(1.2048192771084338, abs=1e-12)
 
 
 @pytest.mark.parametrize("k", [1, 4, 6])
 def test_investor_refused_inside_recapture_period(sample_deal, k):
     r = investor.analyze(dataclasses.replace(sample_deal, unwind_year=k))
-    assert r.irr is None
-    assert r.moic is None
+    assert r.credit_only_irr is None
+    assert r.credit_only_moic is None
     assert r.refused_reason.startswith("REFUSED")
     assert f"t={k}" in r.refused_reason
     assert r.net_credits_retained == 0
@@ -195,8 +195,8 @@ def test_investor_not_refused_at_seven(sample_deal):
 def test_investor_summary_refused(sample_deal, capsys):
     investor.analyze(dataclasses.replace(sample_deal, unwind_year=4)).summary()
     out = capsys.readouterr().out
-    assert "MOIC:                 REFUSED" in out
-    assert "IRR:                  REFUSED" in out
+    assert "Credit-only MOIC:     REFUSED" in out
+    assert "Credit-only IRR:      REFUSED" in out
     assert "NET CREDITS RETAINED: $0" in out
     assert "Net Benefit:          $-3,237,000" in out
     assert "§45D(g)(3)(C)" in out
@@ -205,8 +205,8 @@ def test_investor_summary_refused(sample_deal, capsys):
 def test_investor_summary_normal(sample_deal, capsys):
     df = investor.analyze(sample_deal).summary()
     out = capsys.readouterr().out
-    assert "IRR:                  6.3%" in out
-    assert "MOIC:                 1.20x" in out
+    assert "Credit-only IRR:      6.3%" in out
+    assert "Credit-only MOIC:     1.20x" in out
     assert list(df["Allowance Date"]) == [f"t={t}" for t in range(7)]
     assert "recapture event" not in out
 
@@ -214,15 +214,15 @@ def test_investor_summary_normal(sample_deal, capsys):
 def test_irr_refused_without_sign_change(sample_deal):
     # At p <= 0.05/0.39 = 0.128205..., the t=0 credit covers the equity.
     r = investor.analyze(dataclasses.replace(sample_deal, credit_price=0.12))
-    assert r.irr is None
-    assert r.moic == pytest.approx(1 / 0.12)
+    assert r.credit_only_irr is None
+    assert r.credit_only_moic == pytest.approx(1 / 0.12)
     assert "no sign change" in r.refused_reason
     assert "0.1282" in r.refused_reason
 
 
 def test_irr_just_above_threshold_is_finite(sample_deal):
     r = investor.analyze(dataclasses.replace(sample_deal, credit_price=0.13))
-    assert r.irr is not None and r.irr > 10
+    assert r.credit_only_irr is not None and r.credit_only_irr > 10
 
 
 def test_compute_irr_rejects_bad_shapes():
@@ -245,7 +245,7 @@ def test_compute_irr_large_root_expands_bracket():
 
 def test_investor_to_dict(sample_deal):
     d = investor.analyze(dataclasses.replace(sample_deal, unwind_year=5)).to_dict()
-    assert d["irr"] is None and d["moic"] is None
+    assert d["credit_only_irr"] is None and d["credit_only_moic"] is None
     assert d["unwind_year"] == 5
     assert d["refused_reason"].startswith("REFUSED")
     assert d["cash_flows"][0] == pytest.approx(-2_737_000)
@@ -281,13 +281,13 @@ def test_waterfall_summary_default_boundary(sample_deal, capsys):
 def test_sweep_renders_refused_inside_period(sample_deal):
     df = utils.credit_price_sensitivity(dataclasses.replace(sample_deal, unwind_year=4),
                                         prices=[0.80, 0.85])
-    assert list(df["IRR"]) == ["REFUSED", "REFUSED"]
-    assert list(df["MOIC"]) == ["REFUSED", "REFUSED"]
+    assert list(df["Credit-only IRR"]) == ["REFUSED", "REFUSED"]
+    assert list(df["Credit-only MOIC"]) == ["REFUSED", "REFUSED"]
 
 
 def test_sweep_irr_column_statutory(sample_deal):
     df = utils.credit_price_sensitivity(sample_deal, prices=[0.75, 0.83, 0.90])
-    assert list(df["IRR"]) == ["10.2%", "6.3%", "3.5%"]
+    assert list(df["Credit-only IRR"]) == ["10.2%", "6.3%", "3.5%"]
 
 
 # ── schema ───────────────────────────────────────────────────────────────────

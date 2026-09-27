@@ -36,7 +36,7 @@ def test_qlici_a_plus_b_equals_total(sample_deal):
 def test_structure_returns_result(sample_deal):
     result = transaction.structure(sample_deal)
     assert result.qei == sample_deal.qei
-    assert result.leverage_ratio > 0
+    assert result.leverage_loan_to_equity_ratio > 0
 
 
 def test_summary_returns_dataframe(sample_deal):

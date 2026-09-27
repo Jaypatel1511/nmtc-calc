@@ -142,7 +142,7 @@ def test_investor_summary_no_sign_change_reason(capsys):
     investor.analyze(deal(credit_price=0.10)).summary()
     out = capsys.readouterr().out
     assert "no sign change" in out
-    assert "MOIC:                 10.00x" in out
+    assert "Credit-only MOIC:     10.00x" in out
 
 
 def test_transaction_summary_amounts():
@@ -161,13 +161,13 @@ def test_transaction_summary_amounts():
     assert amounts["── B Loan (Subordinate)"] == "$3.04MM"
     assert amounts["── Credit Price"] == "$0.83 per $1 of NMTCs"
     assert amounts["── NMTC Coverage"] == "32.5% of project cost"
-    assert amounts["── Leverage Ratio"] == "2.09x"
+    assert amounts["── Leverage Loan / Equity"] == "2.09x"
 
 
 def test_transaction_ratios_literal():
     r = transaction.structure(deal(total_project_cost=12_000_000))
     assert r.nmtc_coverage == pytest.approx(3_900_000 / 12_000_000, abs=1e-15)
-    assert r.leverage_ratio == pytest.approx(6_763_000 / 3_237_000, abs=1e-12)
+    assert r.leverage_loan_to_equity_ratio == pytest.approx(6_763_000 / 3_237_000, abs=1e-12)
 
 
 # ── waterfall edges ──────────────────────────────────────────────────────────
@@ -243,7 +243,7 @@ def test_credit_price_sweep_default_prices_and_columns():
     assert list(df["Credit Price"]) == [f"${p/100:.2f}" for p in range(70, 92, 2)]
     assert df.iloc[0]["Leverage Loan ($MM)"] == pytest.approx(7.27)   # 10 - 3.9 x 0.70
     assert df.iloc[-1]["Leverage Loan ($MM)"] == pytest.approx(6.49)
-    assert df.iloc[0]["MOIC"] == pytest.approx(1.429)                 # round(1/0.70, 3)
+    assert df.iloc[0]["Credit-only MOIC"] == pytest.approx(1.429)                 # round(1/0.70, 3)
     assert df.iloc[0]["Equity ($MM)"] == pytest.approx(2.73)
 
 

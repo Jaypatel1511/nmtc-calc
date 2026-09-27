@@ -17,6 +17,13 @@ NET_SUBSIDY_NOTE = (
     "the time value of money; it is a face-amount figure at unwind."
 )
 
+BLENDED_COUPON_NOTE = (
+    "Blended QLICI coupon = (A x A rate + B x B rate) / QLICI total. It is a "
+    "principal-weighted average coupon, not a cost of capital: it moves with the "
+    "A/B split and the two rates only, and ignores every fee, the forgiveness, the "
+    "put and the exit fee. (0.2.1 called it effective_cost_of_capital.)"
+)
+
 INTEREST_SAVINGS_NOTE = (
     "Interest savings to unwind = simple, undiscounted interest over years "
     "1..{k} on the full QLICI principal (A and B loans), comparing the QALICB's "
@@ -45,7 +52,7 @@ class SubsidyResult:
     exit_fee: float
     net_subsidy: Optional[float]
     net_subsidy_pct: Optional[float]
-    effective_cost_of_capital: float
+    blended_qlici_coupon: float
     qalicb_alternative_borrowing_rate: Optional[float]
     interest_savings_to_unwind: Optional[float]
     unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
@@ -70,7 +77,7 @@ class SubsidyResult:
             (f"Net Subsidy at Unwind (t={self.unwind_year})", money(self.net_subsidy, "net_subsidy")),
             ("Net Subsidy as % of Project",  pct(self.net_subsidy_pct, "net_subsidy_pct", 1)),
             ("",                              ""),
-            ("Effective Cost of Capital",    f"{self.effective_cost_of_capital*100:.2f}%"),
+            ("Blended QLICI Coupon",         f"{self.blended_qlici_coupon*100:.2f}%"),
             ("QALICB Alternative Rate",      pct(self.qalicb_alternative_borrowing_rate,
                                                  "qalicb_alternative_borrowing_rate", 2)),
             (f"Interest Savings to Unwind ({self.unwind_year} yrs)",
@@ -83,6 +90,7 @@ class SubsidyResult:
         print(df.to_string(index=False))
         print()
         print("  " + NET_SUBSIDY_NOTE)
+        print("  " + BLENDED_COUPON_NOTE)
         print("  " + INTEREST_SAVINGS_NOTE.format(k=self.unwind_year))
         print("  " + statute.forgiveness_note())
         if self.in_recapture_period:
@@ -98,7 +106,7 @@ class SubsidyResult:
             "exit_fee": self.exit_fee,
             "net_subsidy": self.net_subsidy,
             "net_subsidy_pct": self.net_subsidy_pct,
-            "effective_cost_of_capital": self.effective_cost_of_capital,
+            "blended_qlici_coupon": self.blended_qlici_coupon,
             "qalicb_alternative_borrowing_rate": self.qalicb_alternative_borrowing_rate,
             "interest_savings_to_unwind": self.interest_savings_to_unwind,
             "unwind_year": self.unwind_year,
@@ -121,7 +129,8 @@ def analyze(deal: NMTCDeal) -> SubsidyResult:
       years 1..``deal.unwind_year`` on the full QLICI principal at
       ``deal.qalicb_alternative_borrowing_rate`` less the QLICI coupons.
       REFUSED without the QALICB rate.
-    * ``effective_cost_of_capital``: principal-weighted average QLICI coupon.
+    * ``blended_qlici_coupon``: principal-weighted average QLICI coupon
+      (renamed from ``effective_cost_of_capital``; see BLENDED_COUPON_NOTE).
 
     Args:
         deal: NMTCDeal instance
@@ -151,14 +160,12 @@ def analyze(deal: NMTCDeal) -> SubsidyResult:
                   + deal.qlici_b_loan * (alt - deal.qlici_b_loan_rate))
         savings = annual * k
 
-    total_qlici = deal.qlici_total
-    if total_qlici > 0:
-        effective_cost_of_capital = (
-            (deal.qlici_a_loan * deal.qlici_a_loan_rate) +
-            (deal.qlici_b_loan * deal.qlici_b_loan_rate)
-        ) / total_qlici
-    else:
-        effective_cost_of_capital = 0.0
+    # qlici_total = QEI x (1 - cde_fee_rate) > 0 for every constructible deal
+    # (QEI > 0 and 0 < cde_fee_rate < 1 are validated), so no zero guard.
+    blended_qlici_coupon = (
+        (deal.qlici_a_loan * deal.qlici_a_loan_rate) +
+        (deal.qlici_b_loan * deal.qlici_b_loan_rate)
+    ) / deal.qlici_total
 
     return SubsidyResult(
         project_name=deal.project_name,
@@ -172,7 +179,7 @@ def analyze(deal: NMTCDeal) -> SubsidyResult:
         exit_fee=deal.exit_fee,
         net_subsidy=net_subsidy,
         net_subsidy_pct=net_pct,
-        effective_cost_of_capital=effective_cost_of_capital,
+        blended_qlici_coupon=blended_qlici_coupon,
         qalicb_alternative_borrowing_rate=alt,
         interest_savings_to_unwind=savings,
         unwind_year=k,
