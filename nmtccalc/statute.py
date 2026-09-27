@@ -167,3 +167,60 @@ TIMING_CONVENTION_DISCLOSURE = (
 
 def timing_convention_disclosure() -> str:
     return TIMING_CONVENTION_DISCLOSURE.format(schedule=CITATION_SCHEDULE)
+
+
+# ── the substantially-all requirement: REFUSED, not computed ─────────────────
+#
+# Retrieved 2026-09-27:
+#   26 U.S.C. §45D(b)(1)(B): "substantially all of such cash is used by the
+#     qualified community development entity to make qualified low-income
+#     community investments" -- no percentage in the statute.
+#   26 CFR §1.45D-1(c)(5)(i): "the term substantially all means at least 85
+#     percent"; satisfied "for each annual period in the 7-year credit period",
+#     one testing date in the first annual period, then "performed every six
+#     months and the average of the two calculations for the annual period is
+#     at least 85 percent."
+#   §1.45D-1(c)(5)(ii) direct tracing: numerator "the CDE's aggregate cost basis
+#     determined under section 1012" in QLICIs traceable to the investment;
+#     denominator "the amount of the taxpayer's cash investment".
+#   §1.45D-1(c)(5)(iii) safe harbor: numerator the CDE's §1012 cost basis in all
+#     its QLICIs; denominator "the CDE's aggregate cost basis determined under
+#     section 1012 in all of its assets".
+#   §1.45D-1(c)(5)(iv): cash is treated as invested in a QLICI "only to the
+#     extent that the cash is so invested within the 12-month period beginning
+#     on the date the cash is paid".
+#   §1.45D-1(c)(5)(v): "85 percent is reduced to 75 percent for the seventh year
+#     of the 7-year credit period".
+#   §1.45D-1(d)(2)(i): returned capital must be reinvested "no later than 12
+#     months from the date of receipt".
+
+SUBSTANTIALLY_ALL_STATUS = "REFUSED"
+CITATION_SUBSTANTIALLY_ALL = "26 CFR §1.45D-1(c)(5)"
+
+SUBSTANTIALLY_ALL_REFUSAL_REASONS = (
+    "The 85% threshold is regulatory, not statutory: §45D(b)(1)(B) says only "
+    "\"substantially all\"; 85% is 26 CFR §1.45D-1(c)(5)(i).",
+    "The numerator is the CDE's §1012 cost basis in its QLICIs, not their face "
+    "amount (§1.45D-1(c)(5)(ii)-(iii)); this package models face amounts only.",
+    "There are two alternative tests with different denominators: direct tracing "
+    "divides by the taxpayer's cash investment (§1.45D-1(c)(5)(ii)); the safe "
+    "harbor divides by the CDE's cost basis in ALL of its assets "
+    "(§1.45D-1(c)(5)(iii)), which is not a deal-level quantity.",
+    "It is not testable at closing: cash counts as invested only if invested "
+    "within 12 months of payment (§1.45D-1(c)(5)(iv)); the test then runs for "
+    "every annual period of the 7-year credit period, once in the first and "
+    "semiannually averaged after (§1.45D-1(c)(5)(i)), with returned capital "
+    "reinvested within 12 months (§1.45D-1(d)(2)(i)).",
+    "The threshold is 75%, not 85%, in the seventh year (§1.45D-1(c)(5)(v)).",
+)
+
+DEPLOYMENT_RATIO_NOTE = (
+    "The closing-date QLICI deployment ratio is QLICI total / QEI on the closing "
+    "date, at face. It is NOT the substantially-all test of {cite}, which this "
+    "package refuses to compute for the reasons listed. A breach of that test is "
+    "a recapture event (§45D(g)(3)(B))."
+)
+
+
+def deployment_ratio_note() -> str:
+    return DEPLOYMENT_RATIO_NOTE.format(cite=CITATION_SUBSTANTIALLY_ALL)

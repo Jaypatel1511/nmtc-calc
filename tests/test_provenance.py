@@ -174,7 +174,7 @@ def test_transaction_summary_prints_basis_inline(sample_deal, capsys):
     # every row with an amount has a basis
     for item, amount, basis in zip(df["Item"], df["Amount"], df["Basis"]):
         if amount:
-            assert basis.startswith(("DERIVED", "SUPPLIED")), item
+            assert basis.startswith(("DERIVED", "SUPPLIED", "REFUSED")), item
 
 
 def test_transaction_to_dict_carries_provenance(sample_deal):

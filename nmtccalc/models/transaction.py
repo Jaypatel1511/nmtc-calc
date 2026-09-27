@@ -29,6 +29,9 @@ class TransactionResult:
     credit_price: float
     nmtc_coverage: float        # NMTCs as % of total project cost
     leverage_ratio: float       # leverage loan / investor equity
+    closing_qlici_deployment_ratio: float = 0.0  # QLICI total / QEI at closing, face amounts
+    substantially_all_test: str = statute.SUBSTANTIALLY_ALL_STATUS
+    substantially_all_refusal_reasons: tuple = statute.SUBSTANTIALLY_ALL_REFUSAL_REASONS
     basis: dict = field(default_factory=dict)       # quantity -> "DERIVED: rule" / "SUPPLIED: field"
     provenance: dict = field(default_factory=dict)  # quantity -> "DERIVED" / "SUPPLIED"
 
@@ -48,6 +51,10 @@ class TransactionResult:
             ("CDE / SUB-CDE",            "", ""),
             ("── CDE Fee",               f"${self.cde_fee/1e6:.2f}MM", b.get("cde_fee", "")),
             ("── Total QLICI",           f"${self.qlici_total/1e6:.2f}MM", b.get("qlici_total", "")),
+            ("── Closing-date QLICI deployment ratio", f"{self.closing_qlici_deployment_ratio*100:.1f}% of QEI",
+             "DERIVED: QLICI total / QEI, face, at closing"),
+            ("── Substantially-all test", self.substantially_all_test,
+             f"REFUSED: not computed; five reasons below ({statute.CITATION_SUBSTANTIALLY_ALL})"),
             ("",                         "", ""),
             ("QLICI TO QALICB",          "", ""),
             ("── A Loan (Senior)",       f"${self.qlici_a_loan/1e6:.2f}MM", b.get("qlici_a_loan", "")),
@@ -66,6 +73,10 @@ class TransactionResult:
         print()
         print(PROVENANCE_NOTE)
         print()
+        print(statute.deployment_ratio_note())
+        for i, reason in enumerate(self.substantially_all_refusal_reasons, 1):
+            print(f"  {i}. {reason}")
+        print()
         return df
 
     def to_dict(self) -> dict:
@@ -83,6 +94,9 @@ class TransactionResult:
             "credit_price": self.credit_price,
             "nmtc_coverage": self.nmtc_coverage,
             "leverage_ratio": self.leverage_ratio,
+            "closing_qlici_deployment_ratio": self.closing_qlici_deployment_ratio,
+            "substantially_all_test": self.substantially_all_test,
+            "substantially_all_refusal_reasons": list(self.substantially_all_refusal_reasons),
             "basis": dict(self.basis),
             "provenance": dict(self.provenance),
         }
@@ -115,6 +129,7 @@ def structure(deal: NMTCDeal) -> TransactionResult:
         credit_price=deal.credit_price,
         nmtc_coverage=nmtc_coverage,
         leverage_ratio=leverage_ratio,
+        closing_qlici_deployment_ratio=deal.qlici_total / deal.qei,
         basis={k: v.label() for k, v in deal.basis.items()},
         provenance={k: v.provenance.value for k, v in deal.basis.items()},
     )
