@@ -8,7 +8,8 @@ Prior release history predates this file.
 **Breaking.** A correctness and honest-labelling release built to the
 2026-09-22 methodology audit's §9, items 0–11. The framing it ships under:
 **a correct pedagogical model of a simplified single-CDE NMTC structure, not a
-deal tool.** 0.2.1 has no measurable adoption, so no released user is affected.
+deal tool.** 0.2.1's download counts are consistent with mirrors and CI; there
+are no known users.
 
 ### Fixed
 - **Credit timing (26 U.S.C. §45D(a)(3)).** Credits are placed on the seven
@@ -37,7 +38,14 @@ deal tool.** 0.2.1 has no measurable adoption, so no released user is affected.
   `include_guarantee_fee_in_dscr=True` gives the opposite treatment.
 - **The 39% total** is derived from the §45D(a)(2)–(3) schedule and cited to
   the IRS NMTC Audit Technique Guide, not to §45D.
-- Every numeric input must be a finite real number (0.2.1 accepted NaN).
+- Every numeric input must be a finite real number (0.2.1 accepted NaN), and
+  is stored as a float (a `Fraction` no longer crashes `summary()`).
+- Leverage, A, B, guarantee-fee and exit-fee rates must lie in [0, 1)
+  (0.2.1 accepted negative and 300% rates).
+- `NMTCDeal` is frozen: assigning an attribute after construction raises, so
+  no refusal can be bypassed by mutating a built deal.
+- No silent DSCR: with zero QLICI debt service the summary says
+  "DSCR REFUSED"; without NOI it says DSCR was not computed.
 
 ### Added
 - `nmtccalc.statute`: the schedule, the 7-year period (§45D(g)(1); 26 CFR
@@ -53,15 +61,27 @@ deal tool.** 0.2.1 has no measurable adoption, so no released user is affected.
   `qlici_b_loan_amount` (`UnbalancedStackError` if two do not reconcile).
 - `NMTCDeal.with_credit_price` / `with_discount_rate`; the sweeps use them.
 - `NMTCDeal.b_loan_forgiveness_rate`, `qalicb_alternative_borrowing_rate`,
-  `include_guarantee_fee_in_dscr`; `noi` accepts a series.
+  `include_guarantee_fee_in_dscr`; `noi` accepts a series (list, tuple, range,
+  numpy array, pandas Series); `unwind_year` accepts any integer type, at most
+  `MAX_UNWIND_YEAR` = 30 (a sanity bound, not statutory).
+- Provenance labels inline in the credits, investor, subsidy (a Basis column)
+  and waterfall summaries, not only the transaction summary.
+- The waterfall shows the fund shortfall counting A-loan interest only beside
+  the A+B figure, to bracket the fund's position.
+- Sweeps: a "Leverage Serviced" column; REFUSED cells say why; the discount
+  sweep discloses that PV / Face Value is deal-invariant.
 - `TransactionResult.closing_qlici_deployment_ratio`, and
   `substantially_all_test = "REFUSED"` with five reasons
   (§45D(b)(1)(B); §1.45D-1(c)(5)(i)–(v); (d)(2)(i)).
 - Disclosures on the face of every summary: credit-only invariance, blended
   coupon, leverage/equity invariance, fund line, timing convention, recapture
   boundary, forgiveness/ATG, guarantee-fee election, sweep invariance.
-- Gates: `tools/mutation_gate.py` (447 mutants, 426 killed, 95.3%; floor
-  derived from the baseline records; every survivor has a written reason),
+- Gates: `tools/mutation_gate.py` (533 mutants including 51 text mutants on
+  disclosure and refusal strings, 514 killed, 96.4%; floor derived from the
+  baseline records; every survivor has a written reason anchored to its source
+  line; a ratchet against the main-branch baseline fails on a floor drop or a
+  killed->survived mutant unless an override lists it with a reason — on this
+  first release main has no baseline and the ratchet says so and skips),
   `tools/check_sdist.py` (the sdist ships and passes its own suite; test set
   must equal the checkout's), `tools/docs_check.py` (copied verbatim from
   nmtc-mapper; README vs installed wheel), and CI jobs for each plus
@@ -69,7 +89,13 @@ deal tool.** 0.2.1 has no measurable adoption, so no released user is affected.
   every PR.
 
 ### Changed (breaking)
-- `NMTCDeal.compliance_years` removed (it could only be 7).
+- `NMTCDeal.compliance_years` removed (it could only be 7). `NMTCDeal` is
+  frozen; rates outside [0, 1) and `unwind_year` above 30 are refused.
+- `InvestorResult.refused_code`; `WaterfallResult.dscr_refused_reason`,
+  `annual_fund_shortfall_a_only`, `qlici_b_loan`; every result class carries
+  `basis`.
+- `SubsidyResult.summary()` returns Item / Value / Basis columns; the "Less:"
+  rows are renamed ("CDE Fee (upfront)", "Exit Fee at Unwind").
 - `InvestorResult.irr` / `.moic` → `credit_only_irr` / `credit_only_moic`
   (Optional; None when refused). `gross_benefit` / `net_benefit` use net
   credits retained. New fields `net_credits_retained`, `unwind_year`,
@@ -105,7 +131,11 @@ deal tool.** 0.2.1 has no measurable adoption, so no released user is affected.
   wheel, outputs stored.
 
 ### Tests
-- 350 tests. Two tests that pinned defects as correct were replaced:
+- 446 tests, including fixtures where project cost differs from QEI and a
+  SUPPLIED A loan differs from the leverage loan (every earlier fixture made
+  both pairs equal, which hid six wrong-operand mutants), and exact-text tests
+  for every rendered disclosure. Two tests that pinned defects as correct were
+  replaced:
   `test_avg_dscr_equals_min_when_noi_constant` and `test_moic_math`.
 
 ### Divergences from the READY record and the methodology audit, disclosed
@@ -135,8 +165,11 @@ Each is a deliberate judgment, stated in code where it renders:
   (`subsidy.NET_SUBSIDY_NOTE`).
 - **Rename targets** READY did not name: `net_subsidy_at_unwind`,
   `leverage_loan_to_equity_ratio`.
-- **Mutation score 95.3%**, not READY's 98.1%: a different operator set and
-  population (447 vs 528 mutants).
+- **Mutation score 96.4%**, not READY's 98.1%: a different operator set and
+  population (533 vs 528 mutants, including text mutants).
+- **Credit-only MOIC still renders when the IRR is refused at the solver
+  bound**: it is credits / equity = 1 / price (about 7.80x there), a correct
+  credit-only figure.
 
 ### Not modeled (recorded)
 Multi-CDE (first 0.4.0 candidate); state and historic credits; ongoing CDE
