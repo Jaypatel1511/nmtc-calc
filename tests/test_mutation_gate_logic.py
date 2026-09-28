@@ -119,3 +119,18 @@ def test_real_module_generates_mutants_with_unique_ids():
     ms = g.mutants_for_source("nmtccalc/statute.py", path.read_text())
     assert len(ms) > 5
     assert len({m["id"] for m in ms}) == len(ms)
+
+
+def test_string_operators_drop_not_and_last_sentence():
+    src = 'NOTE = ("This figure is not a return. It depends on the price. Read it so.")\n'
+    ms = {m["operator"]: m for m in g.mutants_for_source("m.py", src)}
+    assert "It is" not in ms["strnot"]["source"]
+    assert "This figure is a return." in ms["strnot"]["source"]
+    assert "Read it so" not in ms["strclause"]["source"]
+    assert "It depends on the price." in ms["strclause"]["source"]
+
+
+def test_docstrings_and_short_strings_and_fstrings_not_text_mutated():
+    src = ('def f(x):\n    """This docstring is not code. It has sentences."""\n'
+           '    y = "short not"\n    return f"value {x} is not checked. Ever. Again."\n')
+    assert [m for m in g.mutants_for_source("m.py", src) if m["operator"].startswith("str")] == []

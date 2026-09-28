@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Mutation-testing gate for nmtc-calc.
 
-Generates mutants of every module under ``nmtccalc/`` by AST transformation,
+Generates mutants of every module under ``nmtccalc/`` by AST transformation
+(arithmetic, comparison, numeric-constant, raise, boolean, `not`, `if`,
+call-result and call-statement operators, plus two TEXT operators on string
+constants of 40+ characters outside f-strings and docstrings: drop the first
+" not ", and drop the last sentence),
 runs the test suite against each one in an isolated copy of the tree, and
 compares the result with the committed baseline ``tools/mutation_baseline.json``.
 
@@ -53,6 +57,7 @@ PACKAGE = "nmtccalc"
 BASELINE = REPO / "tools" / "mutation_baseline.json"
 PYTEST_ARGS = ["-x", "-q", "-p", "no:cacheprovider", "--no-header"]
 LITERAL = 0.0499  # the audit's "IRR engine replaced by a literal" value
+STRING_MIN_LEN = 40  # string constants at least this long get clause/negation mutants
 
 # ── mutant generation ───────────────────────────────────────────────────────
 
@@ -94,6 +99,7 @@ def _docstring_nodes(tree: ast.AST) -> set:
             if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
                     and isinstance(body[0].value.value, str):
                 ids.add(id(body[0]))
+                ids.add(id(body[0].value))  # the string Constant itself, not only its Expr
     return ids
 
 
@@ -128,6 +134,14 @@ def _sites(tree: ast.Module):
             for i, op in enumerate(node.ops):
                 if type(op) in _CMP_SWAP:
                     yield idx, "compare", f"{i}:{type(op).__name__}->{_CMP_SWAP[type(op)].__name__}"
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                and len(node.value) >= STRING_MIN_LEN and not isinstance(parent, ast.JoinedStr):
+            # Disclosure and refusal text: a clause or a negation can be lost
+            # without any number moving. f-string parts are not mutated.
+            if " not " in node.value:
+                yield idx, "strnot", "drop-first-not"
+            if ". " in node.value.rstrip(". "):
+                yield idx, "strclause", "drop-last-sentence"
         elif isinstance(node, ast.Constant) and not isinstance(node.value, (str, bytes)) \
                 and node.value is not None and _perturb(node.value) is not None:
             if isinstance(parent, ast.BinOp) and (_is_str_const(parent.left) or _is_str_const(parent.right)):
@@ -192,6 +206,12 @@ def _apply(tree: ast.Module, idx: int, op: str, detail: str) -> ast.Module:
                 break
     elif op == "if":
         node.test = ast.UnaryOp(op=ast.Not(), operand=node.test)
+    elif op == "strnot":
+        node.value = node.value.replace(" not ", " ", 1)
+    elif op == "strclause":
+        body = node.value.rstrip()
+        cut = body.rstrip(". ").rindex(". ")
+        node.value = body[:cut + 1]
     elif op == "callsub":
         node.value = ast.Constant(value=LITERAL)
     elif op == "stmtdel":

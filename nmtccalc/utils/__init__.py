@@ -1,5 +1,19 @@
+import warnings
+
 import pandas as pd
 
+
+DISCOUNT_INVARIANCE_NOTE = (
+    "The PV / Face Value column depends on the discount rate alone: it is the "
+    "present value of the statutory 5%/6% schedule divided by its 39% total, so it "
+    "is the same for every deal at the same rates. PV of Credits scales with QEI."
+)
+
+LEVERAGE_COLUMN_NOTE = (
+    "Leverage Serviced is the waterfall's reconciliation at each price: 'yes', or "
+    "the annual interest shortfall and/or the principal gap. The leverage loan "
+    "moves with the price; a SUPPLIED A loan does not."
+)
 
 REFUSED_CELL = {
     "recapture": "REFUSED (unwind inside recapture period)",
@@ -30,7 +44,7 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
     Returns:
         DataFrame with one row per credit price
     """
-    from nmtccalc.models import investor, subsidy
+    from nmtccalc.models import investor, subsidy, waterfall
 
     if prices is None:
         prices = [round(p / 100, 2) for p in range(70, 92, 2)]
@@ -50,10 +64,24 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
                 "Credit-only IRR": "REFUSED",
                 "Net Subsidy ($MM)": "REFUSED",
                 "Subsidy % of Cost": "REFUSED (negative tranche)",
+                "Leverage Serviced": "REFUSED (negative tranche)",
             })
             continue
         inv = investor.analyze(d)
         sub = subsidy.analyze(d)
+        with warnings.catch_warnings():
+            # The shortfall is reported in the Leverage Serviced cell instead.
+            warnings.simplefilter("ignore")
+            wf = waterfall.analyze(d)
+        if wf.leverage_serviced:
+            serviced = "yes"
+        else:
+            parts = []
+            if wf.annual_fund_shortfall > 0:
+                parts.append(f"short ${wf.annual_fund_shortfall:,.0f}/yr")
+            if wf.leverage_principal_gap > 0:
+                parts.append(f"principal gap ${wf.leverage_principal_gap:,.0f}")
+            serviced = "NO: " + ", ".join(parts)
         rows.append({
             "Credit Price": f"${price:.2f}",
             "Equity ($MM)": round(d.investor_equity / 1e6, 2),
@@ -65,6 +93,7 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
             "Net Subsidy ($MM)": round(sub.net_subsidy / 1e6, 2) if sub.net_subsidy is not None else "REFUSED",
             "Subsidy % of Cost": (f"{sub.net_subsidy_pct * 100:.1f}%" if sub.net_subsidy_pct is not None
                                   else "REFUSED (no forgiveness rate)"),
+            "Leverage Serviced": serviced,
         })
 
     df = pd.DataFrame(rows)
@@ -73,6 +102,7 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
     print(df.to_string(index=False))
     print()
     print(SWEEP_INVARIANCE_NOTE)
+    print(LEVERAGE_COLUMN_NOTE)
     print()
     return df
 
@@ -107,5 +137,7 @@ def discount_rate_sensitivity(deal, rates=None) -> pd.DataFrame:
     print(f"\nDiscount Rate Sensitivity — {deal.project_name}")
     print("=" * 45)
     print(df.to_string(index=False))
+    print()
+    print(DISCOUNT_INVARIANCE_NOTE)
     print()
     return df
