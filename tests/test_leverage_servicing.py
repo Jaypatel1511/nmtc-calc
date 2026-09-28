@@ -103,7 +103,7 @@ def test_summary_renders_fund_line_and_warning(sample_deal, capsys):
     assert FUND_LINE_DISCLOSURE in out
     assert "neither a floor nor a ceiling" in out
     assert list(df["Lev. Int."])[0] == "$1,352,600"
-    assert list(df["Fund Net"])[0] == "$-1,254,600"
+    assert list(df["Fund Net"])[0] == "-$1,254,600"
 
 
 def test_summary_healthy_has_no_warning(sample_deal, capsys):

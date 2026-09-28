@@ -8,6 +8,7 @@ from typing import Optional, Sequence, Union
 
 from nmtccalc import statute
 from nmtccalc.exceptions import NegativeTrancheError, UnbalancedStackError
+from nmtccalc._format import money
 
 
 class Provenance(str, Enum):
@@ -257,9 +258,9 @@ class NMTCDeal:
                 if name == "qlici_b_loan" and self.qlici_b_loan_amount is None \
                         and self.qlici_a_loan_amount is None:
                     detail = (
-                        f" The CDE fee (${self.cde_fee:,.0f} = "
+                        f" The CDE fee ({money(self.cde_fee, ',.0f')} = "
                         f"{self.cde_fee_rate:.2%} of QEI) exceeds investor equity "
-                        f"(${self.investor_equity:,.0f} = "
+                        f"({money(self.investor_equity, ',.0f')} = "
                         f"{statute.pct_label(statute.TOTAL_CREDIT_RATE)} of QEI x "
                         f"{self.credit_price} credit price). With the B loan derived as "
                         f"equity less fee, cde_fee_rate must not exceed "
@@ -269,7 +270,7 @@ class NMTCDeal:
                 elif name in ("qlici_a_loan", "qlici_b_loan"):
                     detail = f" ({self.basis[name].label()})"
                 raise NegativeTrancheError(
-                    f"{name} would be ${amount:,.0f}; a negative tranche is refused."
+                    f"{name} would be {money(amount, ',.0f')}; a negative tranche is refused."
                     + detail
                 )
 
@@ -280,11 +281,11 @@ class NMTCDeal:
         gap = self.qlici_a_loan_amount + self.qlici_b_loan_amount - self.qlici_total
         if abs(gap) > STACK_TOLERANCE_DOLLARS:
             raise UnbalancedStackError(
-                f"SUPPLIED A loan ${self.qlici_a_loan_amount:,.0f} + B loan "
-                f"${self.qlici_b_loan_amount:,.0f} = "
-                f"${self.qlici_a_loan_amount + self.qlici_b_loan_amount:,.0f}, "
-                f"which differs from QLICI total ${self.qlici_total:,.0f} "
-                f"(QEI less CDE fee) by ${gap:,.0f}."
+                f"SUPPLIED A loan {money(self.qlici_a_loan_amount, ',.0f')} + B loan "
+                f"{money(self.qlici_b_loan_amount, ',.0f')} = "
+                f"{money(self.qlici_a_loan_amount + self.qlici_b_loan_amount, ',.0f')}, "
+                f"which differs from QLICI total {money(self.qlici_total, ',.0f')} "
+                f"(QEI less CDE fee) by {money(gap, ',.0f')}."
             )
 
     # ── rebalancing constructors ─────────────────────────────────────────────
@@ -417,7 +418,7 @@ class NMTCDeal:
     def __repr__(self):
         return (
             f"NMTCDeal(project='{self.project_name}', "
-            f"QEI=${self.qei_mm:.1f}MM, "
-            f"NMTCs=${self.total_nmtcs/1e6:.2f}MM, "
-            f"credit_price=${self.credit_price:.2f})"
+            f"QEI={money(self.qei_mm, '.1f')}MM, "
+            f"NMTCs={money(self.total_nmtcs/1e6, '.2f')}MM, "
+            f"credit_price={money(self.credit_price, '.2f')})"
         )

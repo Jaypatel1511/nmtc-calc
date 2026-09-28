@@ -8,6 +8,7 @@ from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
 from nmtccalc.exceptions import LeverageShortfallWarning
 from nmtccalc.models.subsidy import REFUSED_FORGIVENESS
+from nmtccalc._format import money
 
 
 FUND_LINE_DISCLOSURE = (
@@ -123,16 +124,16 @@ class WaterfallResult:
         for yr in self.years:
             rows.append({
                 "Year": f"Y{yr.year}",
-                "NOI": f"${yr.noi:,.0f}" if yr.noi is not None else "—",
-                "A Int.": f"${yr.a_loan_interest:,.0f}",
-                "B Int.": f"${yr.b_loan_interest:,.0f}",
-                "Guar. Fee": f"${yr.guarantee_fee:,.0f}" if yr.guarantee_fee else "—",
-                "Total DS": f"${yr.total_debt_service:,.0f}",
+                "NOI": f"{money(yr.noi, ',.0f')}" if yr.noi is not None else "—",
+                "A Int.": f"{money(yr.a_loan_interest, ',.0f')}",
+                "B Int.": f"{money(yr.b_loan_interest, ',.0f')}",
+                "Guar. Fee": f"{money(yr.guarantee_fee, ',.0f')}" if yr.guarantee_fee else "—",
+                "Total DS": f"{money(yr.total_debt_service, ',.0f')}",
                 "DSCR": (f"{yr.dscr:.2f}x" if yr.dscr is not None
                          else ("REFUSED" if self.dscr_refused_reason else "—")),
-                "Net CF": f"${yr.net_cash_flow:,.0f}" if yr.net_cash_flow is not None else "—",
-                "Lev. Int.": f"${yr.leverage_loan_interest:,.0f}",
-                "Fund Net": f"${yr.fund_net_cash_flow:,.0f}",
+                "Net CF": f"{money(yr.net_cash_flow, ',.0f')}" if yr.net_cash_flow is not None else "—",
+                "Lev. Int.": f"{money(yr.leverage_loan_interest, ',.0f')}",
+                "Fund Net": f"{money(yr.fund_net_cash_flow, ',.0f')}",
             })
 
         df = pd.DataFrame(rows)
@@ -141,16 +142,16 @@ class WaterfallResult:
         print(df.to_string(index=False))
         print()
         print("Investment Fund (leverage loan):")
-        print(f"  Leverage Loan:              ${self.leverage_loan:,.0f}")
-        print(f"  Annual Leverage Interest:   ${self.annual_leverage_interest:,.0f}")
-        print(f"  QLICI Interest to Fund:     ${self.annual_fund_qlici_interest:,.0f}")
+        print(f"  Leverage Loan:              {money(self.leverage_loan, ',.0f')}")
+        print(f"  Annual Leverage Interest:   {money(self.annual_leverage_interest, ',.0f')}")
+        print(f"  QLICI Interest to Fund:     {money(self.annual_fund_qlici_interest, ',.0f')}")
         print(f"  Leverage Loan basis:        {self.basis.get('leverage_loan', '')}")
-        print(f"  A / B Loan principal:       ${self.a_loan_principal_repaid:,.0f} "
-              f"[{self.basis.get('qlici_a_loan', '')}] / ${self.qlici_b_loan:,.0f} "
+        print(f"  A / B Loan principal:       {money(self.a_loan_principal_repaid, ',.0f')} "
+              f"[{self.basis.get('qlici_a_loan', '')}] / {money(self.qlici_b_loan, ',.0f')} "
               f"[{self.basis.get('qlici_b_loan', '')}]")
-        print(f"  Annual Fund Shortfall:      ${self.annual_fund_shortfall:,.0f}  (A and B interest)")
-        print(f"  Shortfall, A interest only: ${self.annual_fund_shortfall_a_only:,.0f}")
-        print(f"  Principal Gap at Unwind:    ${self.leverage_principal_gap:,.0f}")
+        print(f"  Annual Fund Shortfall:      {money(self.annual_fund_shortfall, ',.0f')}  (A and B interest)")
+        print(f"  Shortfall, A interest only: {money(self.annual_fund_shortfall_a_only, ',.0f')}")
+        print(f"  Principal Gap at Unwind:    {money(self.leverage_principal_gap, ',.0f')}")
         for msg in self.warning_messages:
             print(f"  {msg}")
         print(f"  {FUND_LINE_DISCLOSURE}")
@@ -159,13 +160,13 @@ class WaterfallResult:
         if self.b_loan_forgiven is None:
             print(f"  B Loan Forgiven:  {REFUSED_FORGIVENESS}")
         else:
-            print(f"  B Loan Forgiven:  ${self.b_loan_forgiven:,.0f}")
+            print(f"  B Loan Forgiven:  {money(self.b_loan_forgiven, ',.0f')}")
         if self.exit_fee:
-            print(f"  Exit Fee:         (${self.exit_fee:,.0f})")
+            print(f"  Exit Fee:         ({money(self.exit_fee, ',.0f')})")
         if self.net_subsidy_at_unwind is None:
             print(f"  Net Subsidy at Unwind (t={self.unwind_year}): {REFUSED_FORGIVENESS}")
         else:
-            print(f"  Net Subsidy at Unwind (t={self.unwind_year}): ${self.net_subsidy_at_unwind:,.0f}")
+            print(f"  Net Subsidy at Unwind (t={self.unwind_year}): {money(self.net_subsidy_at_unwind, ',.0f')}")
         if self.in_recapture_period:
             print("  " + statute.recapture_disclosure(self.unwind_year))
         elif self.unwind_year == statute.RECAPTURE_PERIOD_END_YEAR:
@@ -289,7 +290,7 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
     messages = []
     if annual_short > 0:
         principal = (
-            f", and the A-loan principal repaid at unwind is ${principal_gap:,.0f} "
+            f", and the A-loan principal repaid at unwind is {money(principal_gap, ',.0f')} "
             f"less than the leverage principal due" if principal_gap > 0 else ""
         )
         messages.append(SHORTFALL_WARNING.format(

@@ -4,6 +4,7 @@ import numpy as np
 
 from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
+from nmtccalc._format import money
 
 
 @dataclass
@@ -40,23 +41,23 @@ class CreditScheduleResult:
             rows.append({
                 "Allowance Date": f"t={t}" + (" (QEI date)" if t == 0 else ""),
                 "Credit Rate": statute.pct_label(rate),
-                "Credit ($)": f"${credit:,.0f}",
-                "Cumulative ($)": f"${cumulative:,.0f}",
+                "Credit ($)": f"{money(credit, ',.0f')}",
+                "Cumulative ($)": f"{money(cumulative, ',.0f')}",
                 "Status": status,
             })
 
         df = pd.DataFrame(rows)
         print(f"\nNMTC Credit Schedule — {self.project_name}")
-        print(f"QEI: ${self.qei/1e6:.2f}MM [{self.basis.get('qei', '')}]")
+        print(f"QEI: {money(self.qei/1e6, '.2f')}MM [{self.basis.get('qei', '')}]")
         print(f"Total NMTCs ({statute.pct_label(statute.TOTAL_CREDIT_RATE)} × QEI): "
-              f"${self.total_nmtcs/1e6:.2f}MM [{self.basis.get('total_nmtcs', '')}]")
+              f"{money(self.total_nmtcs/1e6, '.2f')}MM [{self.basis.get('total_nmtcs', '')}]")
         print("-" * 72)
         print(df.to_string(index=False))
         print("-" * 72)
-        print(f"  Total NMTCs:          ${self.total_nmtcs:,.0f}  [{self.basis.get('total_nmtcs', '')}]")
-        print(f"  NET CREDITS RETAINED: ${self.net_credits_retained:,.0f}  "
+        print(f"  Total NMTCs:          {money(self.total_nmtcs, ',.0f')}  [{self.basis.get('total_nmtcs', '')}]")
+        print(f"  NET CREDITS RETAINED: {money(self.net_credits_retained, ',.0f')}  "
               f"(unwind at t={self.unwind_year})")
-        print(f"  PV of Credits:        ${self.pv_credits:,.0f}  "
+        print(f"  PV of Credits:        {money(self.pv_credits, ',.0f')}  "
               f"(@ {self.discount_rate*100:.1f}% discount rate, before any recapture)")
         print()
         print("  " + statute.timing_convention_disclosure())

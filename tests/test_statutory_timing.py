@@ -197,7 +197,7 @@ def test_investor_summary_refused(sample_deal, capsys):
     assert "Credit-only MOIC:     REFUSED" in out
     assert "Credit-only IRR:      REFUSED" in out
     assert "NET CREDITS RETAINED: $0" in out
-    assert "Net Benefit:          $-3,237,000" in out
+    assert "Net Benefit:          -$3,237,000" in out
     assert "§45D(g)(3)(C)" in out
 
 

@@ -188,7 +188,8 @@ cr = credits.schedule(deal)
 inv = investor.analyze(deal)
 print(cr.statuses)
 print(f"Net credits retained: ${cr.net_credits_retained:,.0f}")
-print(f"Net benefit: ${inv.net_benefit:,.0f}")
+sign = "-" if inv.net_benefit < 0 else ""
+print(f"Net benefit: {sign}${abs(inv.net_benefit):,.0f}")
 print(inv.credit_only_irr, inv.credit_only_moic)
 ```
 
@@ -210,11 +211,11 @@ taxes in any return; §45D(h) basis reduction and the §38 tax-capacity limit;
 the reinvestment rule as an ongoing obligation; tax on cancellation-of-debt
 income from a forgiven B loan; the day-level boundary at the seventh
 anniversary; sub-annual cash timing (credits are placed on their statutory dates;
-the investor's cash realization lag is not modeled).
+the timing of the investor's cash realization is not modeled).
 
 ## Tests and gates
 
-497 tests, run in CI on Python 3.9–3.12.
+499 tests, run in CI on Python 3.9–3.12.
 
 ```bash
 # docs-check: skip shell commands; CI runs these, not this gate

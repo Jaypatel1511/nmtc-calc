@@ -83,7 +83,7 @@ APPLICABLE_PERCENTAGES = tuple(
 # Derived, not typed. Cited to the IRS ATG, not to §45D; see module docstring.
 TOTAL_CREDIT_RATE = sum(APPLICABLE_PERCENTAGES)
 
-# §45D(g)(1) / §1.45D-1(c)(5)(i): 7 years beginning on the QEI date.
+# §45D(g)(1): the recapture period, 7 years beginning on the QEI date.
 CREDIT_PERIOD_YEARS = 7
 RECAPTURE_PERIOD_END_YEAR = CREDIT_PERIOD_YEARS
 
@@ -181,7 +181,7 @@ TIMING_CONVENTION_DISCLOSURE = (
     "date) through t=6 ({schedule}). The first credit falls on the date the "
     "equity is paid and is not discounted. The investor realizes a credit in "
     "cash through estimated payments and returns filed for the taxable year in "
-    "which the allowance date falls, and that lag is not modeled. Realization can "
+    "which the allowance date falls, and that timing is not modeled. Realization can "
     "fall earlier or later than the allowance date, depending on where each date "
     "falls in the investor's taxable year (the credit is allowed for that year, "
     "§45D(a)(1), and estimated-tax installments can reflect it), so the "

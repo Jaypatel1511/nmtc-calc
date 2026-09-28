@@ -34,8 +34,8 @@ GOLDEN = [
      ('Credits are placed on the statutory credit allowance dates, t=0 (the QEI date) through t=6 '
       '({schedule}). The first credit falls on the date the equity is paid and is not discounted. '
       'The investor realizes a credit in cash through estimated payments and returns filed for the '
-      'taxable year in which the allowance date falls, and that lag is not modeled. Realization can '
-      'fall earlier or later than the allowance date, depending on where each date falls in the '
+      'taxable year in which the allowance date falls, and that timing is not modeled. Realization '
+      'can fall earlier or later than the allowance date, depending on where each date falls in the '
       "investor's taxable year (the credit is allowed for that year, §45D(a)(1), and estimated-tax "
       'installments can reflect it), so the credit-only IRR here is neither a floor nor a ceiling '
       'on an IRR measured on cash realization.')),

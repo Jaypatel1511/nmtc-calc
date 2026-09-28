@@ -37,6 +37,8 @@ deal tool.** There are no known users of 0.2.1.
   `include_guarantee_fee_in_dscr=True` gives the opposite treatment.
 - **The 39% total** is derived from the §45D(a)(2)–(3) schedule and cited to
   the IRS NMTC Audit Technique Guide, not to §45D.
+- Negative money renders sign first (-$3,237,000, not $-3,237,000) in every
+  summary, through one helper (`nmtccalc._format.money`).
 - Every numeric input must be a finite real number (0.2.1 accepted NaN), and
   is stored as a float (a `Fraction` no longer crashes `summary()`).
 - Leverage, A, B, guarantee-fee and exit-fee rates must lie in [0, 1)
@@ -76,9 +78,9 @@ deal tool.** There are no known users of 0.2.1.
 - Disclosures on the face of every summary: credit-only invariance, blended
   coupon, leverage/equity invariance, fund line, timing convention, recapture
   boundary, forgiveness/ATG, guarantee-fee election, sweep invariance.
-- Gates: `tools/mutation_gate.py` (605 mutants including 109 text mutants
+- Gates: `tools/mutation_gate.py` (608 mutants including 109 text mutants
   that drop a "not" or drop each sentence of a disclosure or refusal string,
-  588 killed, 97.2%; floor derived from the
+  591 killed, 97.2%; floor derived from the
   baseline records; every survivor has a written reason anchored to its source
   line; a ratchet against the main-branch baseline fails on a floor drop or a
   killed->survived mutant, or a survivor under an ID the reference lacks (a
@@ -133,7 +135,7 @@ deal tool.** There are no known users of 0.2.1.
   wheel, outputs stored.
 
 ### Tests
-- 497 tests, including a golden full-text test of all 32 disclosure and
+- 499 tests, including a golden full-text test of all 32 disclosure and
   refusal constants, fixtures where project cost differs from QEI and a
   SUPPLIED A loan differs from the leverage loan (the shared
   `conftest.sample_deal` fixture made both pairs equal, which hid six
@@ -170,7 +172,7 @@ Each is a deliberate judgment, stated in code where it renders:
 - **Rename targets** READY did not name: `net_subsidy_at_unwind`,
   `leverage_loan_to_equity_ratio`.
 - **Mutation score 97.2%**, not READY's 98.1%: a different operator set and
-  population (605 vs 528 mutants, including text mutants).
+  population (608 vs 528 mutants, including text mutants).
 - **Credit-only MOIC renders at any legal price**, including where the IRR is
   refused; at an implausible price such as 1e-9 it is 1e9x (1 / price).
 - **Credit-only MOIC still renders when the IRR is refused at the solver

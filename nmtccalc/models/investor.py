@@ -4,6 +4,7 @@ import pandas as pd
 
 from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
+from nmtccalc._format import money
 
 
 REFUSED = "REFUSED"
@@ -96,22 +97,22 @@ class InvestorResult:
         ):
             rows.append({
                 "Allowance Date": f"t={t}",
-                "Tax Credit ($)": f"${credit:,.0f}",
+                "Tax Credit ($)": f"{money(credit, ',.0f')}",
                 "Status": status,
             })
 
         df = pd.DataFrame(rows)
         print(f"\nInvestor Economics — {self.project_name}")
-        print(f"Equity In (t=0): ${self.investor_equity/1e6:.2f}MM "
+        print(f"Equity In (t=0): {money(self.investor_equity/1e6, '.2f')}MM "
               f"[{self.basis.get('investor_equity', '')}]  |  "
-              f"Credit Price: ${self.credit_price:.2f}/$1 [SUPPLIED: credit_price]")
+              f"Credit Price: {money(self.credit_price, '.2f')}/$1 [SUPPLIED: credit_price]")
         print("-" * 60)
         print(df.to_string(index=False))
         print("-" * 60)
-        print(f"  Total NMTCs:          ${self.total_nmtcs:,.0f}  [{self.basis.get('total_nmtcs', '')}]")
-        print(f"  NET CREDITS RETAINED: ${self.net_credits_retained:,.0f}")
-        print(f"  Gross Benefit:        ${self.gross_benefit:,.0f}")
-        print(f"  Net Benefit:          ${self.net_benefit:,.0f}")
+        print(f"  Total NMTCs:          {money(self.total_nmtcs, ',.0f')}  [{self.basis.get('total_nmtcs', '')}]")
+        print(f"  NET CREDITS RETAINED: {money(self.net_credits_retained, ',.0f')}")
+        print(f"  Gross Benefit:        {money(self.gross_benefit, ',.0f')}")
+        print(f"  Net Benefit:          {money(self.net_benefit, ',.0f')}")
         print(f"  Credit-only MOIC:     "
               f"{f'{self.credit_only_moic:.2f}x' if self.credit_only_moic is not None else REFUSED}")
         print(f"  Credit-only IRR:      "
@@ -245,13 +246,13 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
         if irr is None and _has_single_outflow_then_inflows(cash_flows):
             reason = REFUSAL_IRR_BOUND.format(
                 search_max=IRR_SEARCH_MAX, search_pct=IRR_SEARCH_MAX * 100,
-                t0=f"${cash_flows[0]:.4g}")
+                t0=f"{money(cash_flows[0], '.4g')}")
             code = "irr_bound"
         elif irr is None:
             code = "no_sign_change"
             reason = REFUSAL_NO_SIGN_CHANGE.format(
                 threshold=statute.APPLICABLE_PERCENTAGES[0] / statute.TOTAL_CREDIT_RATE,
-                first=f"${annual_credits[0]:,.0f}",
+                first=f"{money(annual_credits[0], ',.0f')}",
             )
 
     return InvestorResult(

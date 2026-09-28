@@ -157,3 +157,33 @@ def test_irr_search_max_is_derived():
     from nmtccalc.models import investor as inv_mod
     assert inv_mod.IRR_SEARCH_MAX == 2.0 ** 29
     assert inv_mod.IRR_SEARCH_MAX <= inv_mod.IRR_BRACKET_CAP < inv_mod.IRR_SEARCH_MAX * inv_mod.IRR_BRACKET_GROWTH
+
+
+# ── fix round 3: sign before the currency symbol ────────────────────────────
+
+def test_money_helper_sign_placement():
+    from nmtccalc._format import money
+    assert money(-0.00039, ".4g") == "-$0.00039"
+    assert money(-3_237_000) == "-$3,237,000"
+    assert money(1_254_600) == "$1,254,600"
+    assert money(0.0) == "$0"
+    assert money(-1.5e6 / 1e6, ".2f") == "-$1.50"
+
+
+def test_negative_money_renders_sign_first_everywhere(sample_deal, capsys):
+    from nmtccalc import subsidy as sub
+    # net subsidy negative: forgiveness 0%, exit fee 50,000; savings negative: alt rate 0%
+    d = dataclasses.replace(sample_deal, b_loan_forgiveness_rate=0.0, exit_fee_rate=0.005,
+                            qalicb_alternative_borrowing_rate=0.0, noi=[100_000] * 7,
+                            unwind_year=7)
+    df = sub.analyze(d).summary()
+    v = dict(zip(df["Item"], df["Value"]))
+    assert v["Net Subsidy at Unwind (t=7)"] == "-$0.05MM"
+    assert v["Interest Savings to Unwind (7 yrs)"] == "-$2.34MM"   # -334,705 x 7
+    out = capsys.readouterr().out
+    wf = waterfall.analyze(d)
+    df = wf.summary()
+    assert list(df["Net CF"])[0] == "-$234,705"                     # 100,000 - 334,705
+    out = capsys.readouterr().out
+    assert "Net Subsidy at Unwind (t=7): -$50,000" in out
+    assert "$-" not in out

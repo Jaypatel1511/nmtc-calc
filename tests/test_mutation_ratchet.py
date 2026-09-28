@@ -222,7 +222,7 @@ def test_irr_bound_reason_is_truthful():
     assert r.credit_only_irr is None
     assert r.refused_reason.startswith(
         "REFUSED: the IRR lies above the solver's search range, which ends at 536,870,912 "
-        "(an IRR of 53,687,091,200%). The net t=0 outlay is $-0.00039 against later credits")
+        "(an IRR of 53,687,091,200%). The net t=0 outlay is -$0.00039 against later credits")
     assert "no sign change" not in r.refused_reason
     # MOIC is credits / equity = 1/p, about 7.80x -- not an artifact, so it renders.
     assert r.credit_only_moic == pytest.approx(7.8, abs=1e-6)

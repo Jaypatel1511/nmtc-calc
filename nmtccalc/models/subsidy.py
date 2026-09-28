@@ -5,6 +5,7 @@ import pandas as pd
 
 from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
+from nmtccalc._format import money
 
 
 REFUSED_FORGIVENESS = "REFUSED: b_loan_forgiveness_rate not supplied (it has no default)"
@@ -64,8 +65,8 @@ class SubsidyResult:
     basis: dict
 
     def summary(self) -> pd.DataFrame:
-        def money(v, name):
-            return f"${v/1e6:.2f}MM" if v is not None else self.refused[name]
+        def money_or_refused(v, name):
+            return f"{money(v/1e6, '.2f')}MM" if v is not None else self.refused[name]
 
         def pct(v, name, digits):
             return f"{v*100:.{digits}f}%" if v is not None else self.refused[name]
@@ -73,16 +74,16 @@ class SubsidyResult:
         b = self.basis
         k = self.unwind_year
         rows = [
-            ("Investor Equity (into fund)", f"${self.investor_equity/1e6:.2f}MM", b.get("investor_equity", "")),
-            ("CDE Fee (upfront)",           f"${self.cde_fee/1e6:.2f}MM", b.get("cde_fee", "")),
-            ("B Loan to QALICB",            f"${self.qlici_b_loan/1e6:.2f}MM", b.get("qlici_b_loan", "")),
+            ("Investor Equity (into fund)", f"{money(self.investor_equity/1e6, '.2f')}MM", b.get("investor_equity", "")),
+            ("CDE Fee (upfront)",           f"{money(self.cde_fee/1e6, '.2f')}MM", b.get("cde_fee", "")),
+            ("B Loan to QALICB",            f"{money(self.qlici_b_loan/1e6, '.2f')}MM", b.get("qlici_b_loan", "")),
             ("B-Loan Forgiveness Rate",     pct(self.b_loan_forgiveness_rate, "b_loan_forgiveness_rate", 1),
              "SUPPLIED: b_loan_forgiveness_rate" if self.b_loan_forgiveness_rate is not None else ""),
-            ("B Loan Forgiven at Unwind",   money(self.b_loan_forgiven, "b_loan_forgiven"),
+            ("B Loan Forgiven at Unwind",   money_or_refused(self.b_loan_forgiven, "b_loan_forgiven"),
              "DERIVED: B loan x forgiveness rate" if self.b_loan_forgiven is not None else ""),
-            ("Exit Fee at Unwind",          f"${self.exit_fee/1e6:.2f}MM", b.get("exit_fee", "")),
+            ("Exit Fee at Unwind",          f"{money(self.exit_fee/1e6, '.2f')}MM", b.get("exit_fee", "")),
             ("",                             "", ""),
-            (f"Net Subsidy at Unwind (t={k})", money(self.net_subsidy, "net_subsidy"),
+            (f"Net Subsidy at Unwind (t={k})", money_or_refused(self.net_subsidy, "net_subsidy"),
              "DERIVED: B loan forgiven - exit fee" if self.net_subsidy is not None else ""),
             ("Net Subsidy as % of Project", pct(self.net_subsidy_pct, "net_subsidy_pct", 1),
              "DERIVED: net subsidy / project cost" if self.net_subsidy_pct is not None else ""),
@@ -94,7 +95,7 @@ class SubsidyResult:
              "SUPPLIED: qalicb_alternative_borrowing_rate"
              if self.qalicb_alternative_borrowing_rate is not None else ""),
             (f"Interest Savings to Unwind ({k} yrs)",
-             money(self.interest_savings_to_unwind, "interest_savings_to_unwind"),
+             money_or_refused(self.interest_savings_to_unwind, "interest_savings_to_unwind"),
              "DERIVED: QLICI principal x (alt rate - coupons) x years"
              if self.interest_savings_to_unwind is not None else ""),
         ]

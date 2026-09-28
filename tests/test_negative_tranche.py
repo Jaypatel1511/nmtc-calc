@@ -15,7 +15,7 @@ BASE = dict(
 
 def test_fee_above_boundary_refused():
     # boundary: cde_fee_rate > 0.39 x 0.83 = 0.3237
-    with pytest.raises(NegativeTrancheError, match=r"qlici_b_loan would be \$-763,000") as ei:
+    with pytest.raises(NegativeTrancheError, match=r"qlici_b_loan would be -\$763,000") as ei:
         NMTCDeal(**BASE, cde_fee_rate=0.40)
     msg = str(ei.value)
     assert "0.3237" in msg

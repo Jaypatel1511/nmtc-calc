@@ -1,6 +1,7 @@
 import warnings
 
 import pandas as pd
+from nmtccalc._format import money
 
 
 DISCOUNT_INVARIANCE_NOTE = (
@@ -63,7 +64,7 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
             d = deal.with_credit_price(price)
         except NegativeTrancheError:
             rows.append({
-                "Credit Price": f"${price:.2f}",
+                "Credit Price": f"{money(price, '.2f')}",
                 "Equity ($MM)": "REFUSED",
                 "Leverage Loan ($MM)": "REFUSED",
                 "Credit-only MOIC": "REFUSED",
@@ -84,12 +85,12 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
         else:
             parts = []
             if wf.annual_fund_shortfall > 0:
-                parts.append(f"short ${wf.annual_fund_shortfall:,.0f}/yr")
+                parts.append(f"short {money(wf.annual_fund_shortfall, ',.0f')}/yr")
             if wf.leverage_principal_gap > 0:
-                parts.append(f"principal gap ${wf.leverage_principal_gap:,.0f}")
+                parts.append(f"principal gap {money(wf.leverage_principal_gap, ',.0f')}")
             serviced = "NO: " + ", ".join(parts)
         rows.append({
-            "Credit Price": f"${price:.2f}",
+            "Credit Price": f"{money(price, '.2f')}",
             "Equity ($MM)": round(d.investor_equity / 1e6, 2),
             "Leverage Loan ($MM)": round(d.leverage_loan / 1e6, 2),
             "Credit-only MOIC": (round(inv.credit_only_moic, 3) if inv.credit_only_moic is not None
