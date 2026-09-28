@@ -24,9 +24,32 @@ def _base(statuses, reasons=None):
             "survivor_reasons": reasons or {}}
 
 
+LOC = {"b": ("tools/mutation_gate.py", 1)}
+
+
 def test_pass_when_identical_and_survivors_explained():
     base = _base({"a": "killed", "b": "survived"}, {"b": "equivalent"})
-    assert g.verdict({"a": "killed", "b": "survived"}, base) == []
+    base["survivor_anchors"] = {"b": g.source_line(*LOC["b"])}
+    assert g.verdict({"a": "killed", "b": "survived"}, base, LOC) == []
+
+
+def test_fail_when_reason_anchored_to_another_line():
+    # The ordinal-shift defect: the reason was written for line 2, the mutant now sits on line 1.
+    base = _base({"a": "killed", "b": "survived"}, {"b": "equivalent"})
+    base["survivor_anchors"] = {"b": g.source_line("tools/mutation_gate.py", 2)}
+    f = g.verdict({"a": "killed", "b": "survived"}, base, LOC)
+    assert any("written against a different source line" in x for x in f)
+
+
+def test_rebaseline_drops_reason_whose_anchor_moved(tmp_path, monkeypatch):
+    monkeypatch.setattr(g, "BASELINE", tmp_path / "b.json")
+    mutants = [{"id": "b", "file": "tools/mutation_gate.py", "line": 1, "operator": "x", "detail": "y"}]
+    old = {"survivor_reasons": {"b": "r"}, "survivor_anchors": {"b": "something else"}}
+    data = g.write_baseline(mutants, {"b": "survived"}, old, 1)
+    assert data["survivor_reasons"] == {}
+    old["survivor_anchors"] = {"b": g.source_line("tools/mutation_gate.py", 1)}
+    data = g.write_baseline(mutants, {"b": "survived"}, old, 1)
+    assert data["survivor_reasons"] == {"b": "r"}
 
 
 def test_fail_below_floor():
