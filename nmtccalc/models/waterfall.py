@@ -87,21 +87,21 @@ class WaterfallResult:
     net_subsidy_at_unwind: Optional[float]
     avg_dscr: Optional[float]
     min_dscr: Optional[float]
-    dscr_varies: bool = False
-    guarantee_fee_in_dscr: bool = False
-    noi_is_series: bool = False
-    unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
-    in_recapture_period: bool = False
-    leverage_loan: float = 0.0
-    annual_leverage_interest: float = 0.0
-    annual_fund_qlici_interest: float = 0.0
-    annual_fund_shortfall: float = 0.0
-    total_fund_shortfall: float = 0.0
-    leverage_principal_due: float = 0.0
-    a_loan_principal_repaid: float = 0.0
-    leverage_principal_gap: float = 0.0
-    leverage_serviced: bool = True
-    warning_messages: tuple = ()
+    dscr_varies: bool
+    guarantee_fee_in_dscr: bool
+    noi_is_series: bool
+    unwind_year: int
+    in_recapture_period: bool
+    leverage_loan: float
+    annual_leverage_interest: float
+    annual_fund_qlici_interest: float
+    annual_fund_shortfall: float
+    total_fund_shortfall: float
+    leverage_principal_due: float
+    a_loan_principal_repaid: float
+    leverage_principal_gap: float
+    leverage_serviced: bool
+    warning_messages: tuple
 
     def summary(self) -> pd.DataFrame:
         rows = []

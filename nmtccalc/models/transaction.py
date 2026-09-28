@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import pandas as pd
 
 from nmtccalc import statute
@@ -36,11 +36,11 @@ class TransactionResult:
     credit_price: float
     nmtc_coverage: float        # NMTCs as % of total project cost
     leverage_loan_to_equity_ratio: float  # leverage loan / investor equity -- a function of credit price alone
-    closing_qlici_deployment_ratio: float = 0.0  # QLICI total / QEI at closing, face amounts
-    substantially_all_test: str = statute.SUBSTANTIALLY_ALL_STATUS
-    substantially_all_refusal_reasons: tuple = statute.SUBSTANTIALLY_ALL_REFUSAL_REASONS
-    basis: dict = field(default_factory=dict)       # quantity -> "DERIVED: rule" / "SUPPLIED: field"
-    provenance: dict = field(default_factory=dict)  # quantity -> "DERIVED" / "SUPPLIED"
+    closing_qlici_deployment_ratio: float  # QLICI total / QEI at closing, face amounts
+    substantially_all_test: str
+    substantially_all_refusal_reasons: tuple
+    basis: dict  # quantity -> "DERIVED: rule" / "SUPPLIED: field"
+    provenance: dict  # quantity -> "DERIVED" / "SUPPLIED"
 
     def summary(self) -> pd.DataFrame:
         b = self.basis
@@ -140,6 +140,8 @@ def structure(deal: NMTCDeal) -> TransactionResult:
         nmtc_coverage=nmtc_coverage,
         leverage_loan_to_equity_ratio=leverage_loan_to_equity_ratio,
         closing_qlici_deployment_ratio=deal.qlici_total / deal.qei,
+        substantially_all_test=statute.SUBSTANTIALLY_ALL_STATUS,
+        substantially_all_refusal_reasons=statute.SUBSTANTIALLY_ALL_REFUSAL_REASONS,
         basis={k: v.label() for k, v in deal.basis.items()},
         provenance={k: v.provenance.value for k, v in deal.basis.items()},
     )

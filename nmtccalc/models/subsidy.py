@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 import pandas as pd
@@ -55,9 +55,9 @@ class SubsidyResult:
     blended_qlici_coupon: float
     qalicb_alternative_borrowing_rate: Optional[float]
     interest_savings_to_unwind: Optional[float]
-    unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
-    in_recapture_period: bool = False
-    refused: dict = field(default_factory=dict)
+    unwind_year: int
+    in_recapture_period: bool
+    refused: dict
 
     def summary(self) -> pd.DataFrame:
         def money(v, name):

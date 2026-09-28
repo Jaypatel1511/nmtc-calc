@@ -16,7 +16,7 @@ dir = "docs/README.expected"
 
 [tests]
 path = "tests"
-# total -- "349 tests, run in CI on Python 3.9-3.12."
+# total -- "350 tests, run in CI on Python 3.9-3.12."
 claim_pattern = '^(\d+)\s+tests\b'
 # No live/offline/repo claims: this suite has no network tests and no
 # repository-only marker, and the README states no such split. The keys are

@@ -199,3 +199,9 @@ def test_sweep_net_subsidy_with_rate(full):
     # 3,037,000 x 0.999 = 3,033,963: 3.03 at two places (3.034 at three)
     df = utils.credit_price_sensitivity(dataclasses.replace(full, b_loan_forgiveness_rate=0.999), prices=[0.83])
     assert df.iloc[0]["Net Subsidy ($MM)"] == 3.03
+
+
+def test_summary_exit_fee_scale(full):
+    # 1% exit fee on 10,000,000 = 100,000 -> "$0.10MM" (divided by 1.1e6 it would be $0.09MM)
+    df = subsidy.analyze(dataclasses.replace(full, exit_fee_rate=0.01)).summary()
+    assert dict(zip(df["Item"], df["Value"]))["Less: Exit Fee"] == "($0.10MM)"

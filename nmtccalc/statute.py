@@ -113,6 +113,12 @@ def allowance_statuses(unwind_year: int) -> tuple:
       investor no longer holds the QEI on allowance dates at or after k, so
       those credits are NOT ALLOWABLE (§45D(a)(1) requires the taxpayer to
       hold the QEI on the credit allowance date).
+
+    Judgment call, disclosed: an allowance date falling in the unwind year
+    itself (t == k) is marked NOT ALLOWABLE, treating the unwind as occurring
+    on or before that anniversary. The primary sources do not settle same-day
+    ordering. It does not change any figure: inside the recapture period every
+    allowed credit is recaptured, so net credits retained are 0 either way.
     """
     if not unwind_in_recapture_period(unwind_year):
         return tuple(STATUS_ALLOWED for _ in CREDIT_ALLOWANCE_YEARS)

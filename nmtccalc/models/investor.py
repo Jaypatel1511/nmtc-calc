@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
 
@@ -52,11 +52,11 @@ class InvestorResult:
     net_benefit: float
     credit_only_irr: Optional[float]
     credit_only_moic: Optional[float]
-    net_credits_retained: float = 0.0
-    unwind_year: int = statute.RECAPTURE_PERIOD_END_YEAR
-    in_recapture_period: bool = False
-    cash_flows: list = field(default_factory=list)
-    refused_reason: Optional[str] = None
+    net_credits_retained: float
+    unwind_year: int
+    in_recapture_period: bool
+    cash_flows: list
+    refused_reason: Optional[str]
 
     def summary(self) -> pd.DataFrame:
         rows = []
