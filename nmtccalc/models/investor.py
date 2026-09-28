@@ -186,6 +186,12 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
     ``credit_only_moic`` are REFUSED. ``refused_code`` is "recapture",
     "no_sign_change" or "irr_bound" when a figure is refused, else None.
 
+    Decided and disclosed: credit-only MOIC = 1 / credit price for every legal
+    price, and it renders whenever the unwind is outside the recapture period,
+    even where the IRR is refused. At an implausible price (e.g. 1e-9) it is
+    correspondingly large (1e9x); that is correct arithmetic on the input, and
+    the package does not police price plausibility beyond (0, 1).
+
     Args:
         deal: NMTCDeal instance
 

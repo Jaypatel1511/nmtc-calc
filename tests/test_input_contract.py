@@ -101,3 +101,48 @@ def test_fraction_inputs_coerced_and_summaries_render(sample_deal, capsys):
 def test_numeric_fields_are_floats(sample_deal):
     d = dataclasses.replace(sample_deal, nmtc_allocation=np.int64(10_000_000), total_project_cost=10_000_000)
     assert type(d.nmtc_allocation) is float and type(d.total_project_cost) is float
+
+
+# ── fix round 2, R1-1 ────────────────────────────────────────────────────────
+
+def test_noi_dict_refused(sample_deal):
+    with pytest.raises(ValueError, match=r"noi must not be a mapping \(a dict gives its keys"):
+        dataclasses.replace(sample_deal, noi={i: 600_000 for i in range(7)})
+
+
+def test_noi_mapping_types_refused(sample_deal):
+    import collections
+    with pytest.raises(ValueError, match="noi must not be a mapping"):
+        dataclasses.replace(sample_deal, noi=collections.OrderedDict((i, 1.0) for i in range(7)))
+
+
+@pytest.mark.parametrize("s", [{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}, frozenset({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})])
+def test_noi_set_refused(sample_deal, s):
+    with pytest.raises(ValueError, match=r"noi must not be a set \(a set has no order\)"):
+        dataclasses.replace(sample_deal, noi=s)
+
+
+@pytest.mark.parametrize("arr", [np.full((7, 1), 6e5), np.full((1, 7), 6e5), pd.DataFrame({"noi": [6e5] * 7})])
+def test_noi_not_one_dimensional_refused(sample_deal, arr):
+    with pytest.raises(ValueError, match=r"noi must be one-dimensional \(got an array with ndim=2\)"):
+        dataclasses.replace(sample_deal, noi=arr)
+
+
+def test_noi_zero_dim_array_is_a_scalar(sample_deal):
+    # np.float64 is a Real and takes the scalar path
+    assert dataclasses.replace(sample_deal, noi=np.float64(6e5)).noi == 6e5
+
+
+def test_noi_series_with_nondefault_index_uses_values_in_order(sample_deal):
+    s = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], index=[70, 60, 50, 40, 30, 20, 10])
+    assert dataclasses.replace(sample_deal, noi=s).noi == (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0)
+
+
+def test_moic_renders_at_implausible_price(sample_deal):
+    # X10 residual, decided: credit-only MOIC = 1 / price for any legal price. At 1e-9 it is
+    # 1e9x -- correct arithmetic on an implausible input; the package does not police price
+    # plausibility beyond (0, 1). The IRR is refused (no sign change).
+    # (fee 1e-10 < 39% x 1e-9, so the B loan stays non-negative)
+    r = investor.analyze(dataclasses.replace(sample_deal, credit_price=1e-9, cde_fee_rate=1e-10))
+    assert r.credit_only_moic == pytest.approx(1e9, rel=1e-9)
+    assert r.refused_code == "no_sign_change"

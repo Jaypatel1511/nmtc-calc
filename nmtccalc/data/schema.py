@@ -1,3 +1,4 @@
+import collections.abc
 import dataclasses
 import math
 import numbers
@@ -199,6 +200,15 @@ class NMTCDeal:
             return
         if isinstance(noi, numbers.Real) or isinstance(noi, (str, bytes)) or isinstance(noi, bool):
             raise ValueError(self._NOI_MESSAGE)
+        # tuple() of a mapping yields its KEYS and a set has no order, so both
+        # would be silently wrong; a 2-D array is not a year-by-year series.
+        if isinstance(noi, collections.abc.Mapping):
+            raise ValueError("noi must not be a mapping (a dict gives its keys, not its values); "
+                             "pass the values in year order")
+        if isinstance(noi, (collections.abc.Set, frozenset)):
+            raise ValueError("noi must not be a set (a set has no order); pass a list in year order")
+        if getattr(noi, "ndim", 1) != 1:
+            raise ValueError(f"noi must be one-dimensional (got an array with ndim={noi.ndim})")
         try:
             values = tuple(noi)       # list, tuple, range, numpy array, pandas Series
         except TypeError:
