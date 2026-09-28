@@ -149,8 +149,11 @@ def test_string_operators_drop_not_and_last_sentence():
     ms = {m["operator"]: m for m in g.mutants_for_source("m.py", src)}
     assert "It is" not in ms["strnot"]["source"]
     assert "This figure is a return." in ms["strnot"]["source"]
-    assert "Read it so" not in ms["strclause"]["source"]
-    assert "It depends on the price." in ms["strclause"]["source"]
+    drops = [m["source"] for m in g.mutants_for_source("m.py", src) if m["operator"] == "strsentence"]
+    assert len(drops) == 3
+    assert "This figure is not a return." not in drops[0] and "Read it so" in drops[0]
+    assert "It depends on the price." not in drops[1]
+    assert "Read it so" not in drops[2] and "It depends on the price." in drops[2]
 
 
 def test_docstrings_and_short_strings_and_fstrings_not_text_mutated():

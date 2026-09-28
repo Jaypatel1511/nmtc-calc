@@ -5,7 +5,9 @@ Generates mutants of every module under ``nmtccalc/`` by AST transformation
 (arithmetic, comparison, numeric-constant, raise, boolean, `not`, `if`,
 call-result and call-statement operators, plus two TEXT operators on string
 constants of 40+ characters outside f-strings and docstrings: drop the first
-" not ", and drop the last sentence),
+" not ", and drop EACH sentence in turn; clause-level edits inside a sentence
+are left to tests/test_disclosure_golden.py, which pins every disclosure
+constant's full text),
 runs the test suite against each one in an isolated copy of the tree, and
 compares the result with the committed baseline ``tools/mutation_baseline.json``.
 
@@ -138,6 +140,18 @@ def _perturb(value):
     return None
 
 
+def _sentences(text: str) -> list:
+    """Split on '. ' boundaries, keeping each sentence's own full stop."""
+    parts, start = [], 0
+    while True:
+        cut = text.find(". ", start)
+        if cut < 0:
+            parts.append(text[start:])
+            return [p for p in parts if p.strip()]
+        parts.append(text[start:cut + 1])
+        start = cut + 2
+
+
 def _sites(tree: ast.Module):
     """Yield (walk_index, operator, detail) for every mutable site."""
     local_fns = _local_functions(tree)
@@ -161,8 +175,9 @@ def _sites(tree: ast.Module):
             # without any number moving. f-string parts are not mutated.
             if " not " in node.value:
                 yield idx, "strnot", "drop-first-not"
-            if ". " in node.value.rstrip(". "):
-                yield idx, "strclause", "drop-last-sentence"
+            for i in range(len(_sentences(node.value))):
+                if len(_sentences(node.value)) > 1:
+                    yield idx, "strsentence", f"drop-sentence-{i}"
         elif isinstance(node, ast.Constant) and not isinstance(node.value, (str, bytes)) \
                 and node.value is not None and _perturb(node.value) is not None:
             if isinstance(parent, ast.BinOp) and (_is_str_const(parent.left) or _is_str_const(parent.right)):
@@ -229,10 +244,10 @@ def _apply(tree: ast.Module, idx: int, op: str, detail: str) -> ast.Module:
         node.test = ast.UnaryOp(op=ast.Not(), operand=node.test)
     elif op == "strnot":
         node.value = node.value.replace(" not ", " ", 1)
-    elif op == "strclause":
-        body = node.value.rstrip()
-        cut = body.rstrip(". ").rindex(". ")
-        node.value = body[:cut + 1]
+    elif op == "strsentence":
+        parts = _sentences(node.value)
+        i = int(detail.rsplit("-", 1)[1])
+        node.value = " ".join(p for j, p in enumerate(parts) if j != i)
     elif op == "callsub":
         node.value = ast.Constant(value=LITERAL)
     elif op == "stmtdel":

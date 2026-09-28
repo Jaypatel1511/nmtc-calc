@@ -214,7 +214,7 @@ the investor's cash realization lag is not modeled).
 
 ## Tests and gates
 
-446 tests, run in CI on Python 3.9–3.12.
+497 tests, run in CI on Python 3.9–3.12.
 
 ```bash
 # docs-check: skip shell commands; CI runs these, not this gate

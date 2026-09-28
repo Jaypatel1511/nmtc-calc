@@ -47,8 +47,8 @@ deal tool.** There are no known users of 0.2.1.
   "DSCR REFUSED"; without NOI it says DSCR was not computed.
 
 ### Added
-- `nmtccalc.statute`: the schedule, the 7-year period (§45D(g)(1); 26 CFR
-  §1.45D-1(c)(5)(i)) ending at t=7, recapture rules, the substantially-all
+- `nmtccalc.statute`: the schedule, the 7-year period (§45D(g)(1), and the
+  IRS ATG's credit-period sentence) ending at t=7, recapture rules, the substantially-all
   refusal reasons and the ATG passage, each quoted from a source retrieved on
   2026-09-27.
 - `NMTCDeal.unwind_year` (default 7). An unwind before t=7 is inside the
@@ -61,7 +61,8 @@ deal tool.** There are no known users of 0.2.1.
 - `NMTCDeal.with_credit_price` / `with_discount_rate`; the sweeps use them.
 - `NMTCDeal.b_loan_forgiveness_rate`, `qalicb_alternative_borrowing_rate`,
   `include_guarantee_fee_in_dscr`; `noi` accepts a series (list, tuple, range,
-  numpy array, pandas Series); `unwind_year` accepts any integer type, at most
+  numpy array, pandas Series; a mapping, a set or a multi-dimensional array is
+  refused); `unwind_year` accepts any integer type, at most
   `MAX_UNWIND_YEAR` = 30 (a sanity bound, not statutory).
 - Provenance labels inline in the credits, investor, subsidy (a Basis column)
   and waterfall summaries, not only the transaction summary.
@@ -75,11 +76,13 @@ deal tool.** There are no known users of 0.2.1.
 - Disclosures on the face of every summary: credit-only invariance, blended
   coupon, leverage/equity invariance, fund line, timing convention, recapture
   boundary, forgiveness/ATG, guarantee-fee election, sweep invariance.
-- Gates: `tools/mutation_gate.py` (533 mutants including 51 text mutants on
-  disclosure and refusal strings, 514 killed, 96.4%; floor derived from the
+- Gates: `tools/mutation_gate.py` (605 mutants including 109 text mutants
+  that drop a "not" or drop each sentence of a disclosure or refusal string,
+  588 killed, 97.2%; floor derived from the
   baseline records; every survivor has a written reason anchored to its source
   line; a ratchet against the main-branch baseline fails on a floor drop or a
-  killed->survived mutant unless an override lists it with a reason — on this
+  killed->survived mutant, or a survivor under an ID the reference lacks (a
+  rename), unless an override lists it with a reason — on this
   first release main has no baseline and the ratchet says so and skips),
   `tools/check_sdist.py` (the sdist ships and passes its own suite; test set
   must equal the checkout's), `tools/docs_check.py` (copied verbatim from
@@ -130,7 +133,8 @@ deal tool.** There are no known users of 0.2.1.
   wheel, outputs stored.
 
 ### Tests
-- 446 tests, including fixtures where project cost differs from QEI and a
+- 497 tests, including a golden full-text test of all 32 disclosure and
+  refusal constants, fixtures where project cost differs from QEI and a
   SUPPLIED A loan differs from the leverage loan (the shared
   `conftest.sample_deal` fixture made both pairs equal, which hid six
   wrong-operand mutants), and exact-text tests
@@ -165,8 +169,10 @@ Each is a deliberate judgment, stated in code where it renders:
   (`subsidy.NET_SUBSIDY_NOTE`).
 - **Rename targets** READY did not name: `net_subsidy_at_unwind`,
   `leverage_loan_to_equity_ratio`.
-- **Mutation score 96.4%**, not READY's 98.1%: a different operator set and
-  population (533 vs 528 mutants, including text mutants).
+- **Mutation score 97.2%**, not READY's 98.1%: a different operator set and
+  population (605 vs 528 mutants, including text mutants).
+- **Credit-only MOIC renders at any legal price**, including where the IRR is
+  refused; at an implausible price such as 1e-9 it is 1e9x (1 / price).
 - **Credit-only MOIC still renders when the IRR is refused at the solver
   bound**: it is credits / equity = 1 / price (about 7.80x there), a correct
   credit-only figure.
