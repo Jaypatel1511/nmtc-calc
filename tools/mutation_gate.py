@@ -31,11 +31,14 @@ THE RATCHET compares the committed baseline with a REFERENCE baseline -- the
 one at the merge-base with origin/main (falling back to main), or --reference
 REF. It fails when
   5. the floor is lower than the reference floor, or
-  6. a mutant killed in the reference survives in the committed baseline,
+  6. a mutant killed in the reference survives in the committed baseline, or
+  7. a mutant SURVIVES in the committed baseline under an ID the reference
+     does not have (new code, or old code renamed -- a rename changes IDs, so
+     without this rule renaming a function and marking its mutants survived,
+     padded with new killed mutants to hold the floor, would pass),
 unless tools/mutation_ratchet_overrides.json lists that mutant ID (or
-"floor_drop") with a written reason. Mutants that exist in only one of the two
-baselines are reported, not failed: code changes add and remove mutants, and
-rules 2-4 above govern the current run. When the reference has NO baseline
+"floor_drop") with a written reason. Killed mutants that exist in only one
+baseline are reported, not failed. When the reference has NO baseline
 (the release that introduces the gate), the ratchet says so loudly and skips;
 pass --require-reference to make that a failure instead.
 
@@ -552,10 +555,17 @@ def ratchet(current: dict, reference: dict | None, overrides: dict, ref_label: s
         failures.append(f"ratchet: {len(flipped)} mutant(s) killed in the reference baseline survive in "
                         f"the committed one (list each in {OVERRIDES.relative_to(REPO)} with a reason "
                         "if deliberate):\n    " + "\n    ".join(flipped))
+    new_survivors = sorted(mid for mid, r in current["mutants"].items()
+                           if r["status"] == "survived" and mid not in reference["mutants"]
+                           and mid not in overrides)
+    if new_survivors:
+        failures.append(f"ratchet: {len(new_survivors)} surviving mutant(s) have IDs the reference "
+                        "baseline does not have (new or renamed code); list each in "
+                        f"{OVERRIDES.relative_to(REPO)} with a reason:\n    " + "\n    ".join(new_survivors))
     only_ref = len(set(reference["mutants"]) - set(current["mutants"]))
     only_cur = len(set(current["mutants"]) - set(reference["mutants"]))
     print(f"RATCHET: {only_ref} mutant(s) only in the reference, {only_cur} only in the committed "
-          "baseline (code changed; reported, not failed)")
+          "baseline (killed ones reported, not failed; survivors among them need overrides)")
     return failures
 
 
@@ -585,7 +595,7 @@ def main(argv=None) -> int:
                 print(f"  - {f}")
             return 1
         if args.ratchet_only:
-            print("RATCHET PASSED")
+            print("RATCHET SKIPPED (no reference baseline)" if ref is None else "RATCHET PASSED")
             return 0
 
     mutants = generate_mutants()

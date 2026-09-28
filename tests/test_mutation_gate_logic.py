@@ -190,6 +190,21 @@ def test_ratchet_passes_when_floor_rises_and_ids_change(capsys):
     assert "1 mutant(s) only in the reference, 1 only in the committed" in capsys.readouterr().out
 
 
+def test_ratchet_catches_rename_dodge():
+    # R1-2: rename a function (new IDs), mark its mutant survived, pad with 30 killed mutants
+    # so the floor rises. Before this rule ratchet() returned [].
+    ref = _bl({"m.py::_compute_irr::const::x#0": "killed", "m.py::f::c#0": "killed",
+               "m.py::f::c#1": "survived"})
+    cur = {"m.py::_solve_irr::const::x#0": "survived", "m.py::f::c#0": "killed",
+           "m.py::f::c#1": "survived"}
+    cur.update({f"m.py::pad::c#{i}": "killed" for i in range(30)})
+    cur = _bl(cur)
+    f = g.ratchet(cur, ref, {}, "main")
+    assert len(f) == 1 and "IDs the reference baseline does not have" in f[0]
+    assert "m.py::_solve_irr::const::x#0" in f[0]
+    assert g.ratchet(cur, ref, {"m.py::_solve_irr::const::x#0": "renamed; reviewed"}, "main") == []
+
+
 def test_overrides_without_reason_refused(tmp_path, monkeypatch):
     p = tmp_path / "o.json"
     p.write_text('{"x": "  "}')
