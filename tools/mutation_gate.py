@@ -21,8 +21,23 @@ THE GATE FAILS WHEN ANY OF THESE HOLDS
 
 THE FLOOR IS DERIVED, NOT TYPED. It is recomputed on every run from the
 baseline's per-mutant records (killed / total). No score is typed anywhere in
-this file or in the baseline; the baseline's stored summary is cross-checked
-against its own records and the gate refuses a baseline where they disagree.
+this file or in the baseline. The baseline's stored summary is cross-checked
+against its own records, which catches an edit that changes one without the
+other -- and ONLY that: a CONSISTENT hand edit (a status flipped to survived,
+the summary adjusted to match, a reason added) passes that check, and
+--rebaseline can legitimately lower the floor. What stops both is the RATCHET:
+
+THE RATCHET compares the committed baseline with a REFERENCE baseline -- the
+one at the merge-base with origin/main (falling back to main), or --reference
+REF. It fails when
+  5. the floor is lower than the reference floor, or
+  6. a mutant killed in the reference survives in the committed baseline,
+unless tools/mutation_ratchet_overrides.json lists that mutant ID (or
+"floor_drop") with a written reason. Mutants that exist in only one of the two
+baselines are reported, not failed: code changes add and remove mutants, and
+rules 2-4 above govern the current run. When the reference has NO baseline
+(the release that introduces the gate), the ratchet says so loudly and skips;
+pass --require-reference to make that a failure instead.
 
 Mutant IDs are content-based, not line-based:
     <file>::<enclosing function>::<operator>::<detail>#<n>
@@ -35,6 +50,7 @@ Usage
                                                    # reasons for survivors that persist)
     python tools/mutation_gate.py --list           # list mutants without running
     python tools/mutation_gate.py --workers 4
+    python tools/mutation_gate.py --ratchet-only [--reference origin/main]
 """
 from __future__ import annotations
 
@@ -55,6 +71,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 PACKAGE = "nmtccalc"
 BASELINE = REPO / "tools" / "mutation_baseline.json"
+OVERRIDES = REPO / "tools" / "mutation_ratchet_overrides.json"
+BASELINE_GIT_PATH = "tools/mutation_baseline.json"
 PYTEST_ARGS = ["-x", "-q", "-p", "no:cacheprovider", "--no-header"]
 LITERAL = 0.0499  # the audit's "IRR engine replaced by a literal" value
 STRING_MIN_LEN = 40  # string constants at least this long get clause/negation mutants
@@ -444,12 +462,101 @@ def verdict(results: dict, baseline: dict) -> list:
     return failures
 
 
+def _git(*args) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True)
+
+
+def resolve_reference(ref: str | None) -> str | None:
+    """The commit to compare against: --reference, else merge-base with origin/main, else main."""
+    if ref:
+        out = _git("rev-parse", "--verify", f"{ref}^{{commit}}")
+        if out.returncode != 0:
+            raise SystemExit(f"mutation_gate: --reference {ref!r} does not resolve to a commit")
+        return out.stdout.strip()
+    for candidate in ("origin/main", "main"):
+        if _git("rev-parse", "--verify", f"{candidate}^{{commit}}").returncode == 0:
+            mb = _git("merge-base", "HEAD", candidate)
+            if mb.returncode == 0:
+                return mb.stdout.strip()
+    return None
+
+
+def reference_baseline(commit: str | None) -> dict | None:
+    if commit is None:
+        return None
+    out = _git("show", f"{commit}:{BASELINE_GIT_PATH}")
+    if out.returncode != 0:
+        return None
+    return json.loads(out.stdout)
+
+
+def load_overrides() -> dict:
+    if not OVERRIDES.exists():
+        return {}
+    data = json.loads(OVERRIDES.read_text())
+    bad = [k for k, v in data.items() if not str(v).strip()]
+    if bad:
+        raise SystemExit(f"mutation_gate: ratchet overrides without a written reason: {bad}")
+    return data
+
+
+def ratchet(current: dict, reference: dict | None, overrides: dict, ref_label: str) -> list:
+    """Failures from comparing the committed baseline with the reference baseline."""
+    if reference is None:
+        print(f"RATCHET: no reference baseline at {ref_label} -- this is the release that "
+              "introduces the gate, so there is nothing to ratchet against. SKIPPED, explicitly.")
+        return []
+    failures = []
+    _, _, cur_floor = _score(current["mutants"])
+    _, _, ref_floor = _score(reference["mutants"])
+    print(f"RATCHET: reference {ref_label} floor {ref_floor:.4f}; committed floor {cur_floor:.4f}")
+    if cur_floor < ref_floor and "floor_drop" not in overrides:
+        failures.append(f"ratchet: the committed floor {cur_floor:.4f} is below the reference floor "
+                        f"{ref_floor:.4f} ({ref_label}); list \"floor_drop\" with a reason in "
+                        f"{OVERRIDES.relative_to(REPO)} if this is deliberate")
+    flipped = sorted(mid for mid, r in reference["mutants"].items()
+                     if r["status"] in ("killed", "timeout")
+                     and current["mutants"].get(mid, {}).get("status") == "survived"
+                     and mid not in overrides)
+    if flipped:
+        failures.append(f"ratchet: {len(flipped)} mutant(s) killed in the reference baseline survive in "
+                        f"the committed one (list each in {OVERRIDES.relative_to(REPO)} with a reason "
+                        "if deliberate):\n    " + "\n    ".join(flipped))
+    only_ref = len(set(reference["mutants"]) - set(current["mutants"]))
+    only_cur = len(set(current["mutants"]) - set(reference["mutants"]))
+    print(f"RATCHET: {only_ref} mutant(s) only in the reference, {only_cur} only in the committed "
+          "baseline (code changed; reported, not failed)")
+    return failures
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rebaseline", action="store_true")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--workers", type=int, default=max(1, os.cpu_count() or 1))
+    ap.add_argument("--reference", help="git ref whose baseline the ratchet compares against")
+    ap.add_argument("--require-reference", action="store_true",
+                    help="fail if the reference has no baseline instead of skipping")
+    ap.add_argument("--ratchet-only", action="store_true",
+                    help="run only the ratchet against the reference baseline (no campaign)")
     args = ap.parse_args(argv)
+
+    if args.ratchet_only or not args.rebaseline:
+        commit = resolve_reference(args.reference)
+        label = args.reference or (f"merge-base {commit[:7]}" if commit else "(no main branch)")
+        ref = reference_baseline(commit)
+        if ref is None and args.require_reference:
+            print(f"RATCHET FAILED: no reference baseline at {label} and --require-reference given")
+            return 1
+        rfail = ratchet(load_baseline(), ref, load_overrides(), label)
+        if rfail:
+            print("\nMUTATION GATE FAILED (ratchet)")
+            for f in rfail:
+                print(f"  - {f}")
+            return 1
+        if args.ratchet_only:
+            print("RATCHET PASSED")
+            return 0
 
     mutants = generate_mutants()
     if args.list:

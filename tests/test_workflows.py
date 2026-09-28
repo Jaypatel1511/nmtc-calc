@@ -54,3 +54,11 @@ def test_ci_runs_every_gate():
     for needle in ("tools/mutation_gate.py", "tools/check_sdist.py", "tools/docs_check.py --root .",
                    "release-invocation:"):
         assert needle in ci, needle
+
+
+@needs_workflows
+def test_ci_runs_mutation_ratchet_with_full_history():
+    ci = (WF / "ci.yml").read_text()
+    job = ci.split("  mutation:", 1)[1].split("\n  release-invocation:", 1)[0]
+    assert "python tools/mutation_gate.py --ratchet-only" in job
+    assert "fetch-depth: 0" in job

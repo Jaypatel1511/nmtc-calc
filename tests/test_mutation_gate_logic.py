@@ -134,3 +134,42 @@ def test_docstrings_and_short_strings_and_fstrings_not_text_mutated():
     src = ('def f(x):\n    """This docstring is not code. It has sentences."""\n'
            '    y = "short not"\n    return f"value {x} is not checked. Ever. Again."\n')
     assert [m for m in g.mutants_for_source("m.py", src) if m["operator"].startswith("str")] == []
+
+
+def _bl(statuses):
+    return {"mutants": {k: {"status": v} for k, v in statuses.items()}}
+
+
+def test_ratchet_skips_explicitly_without_reference(capsys):
+    assert g.ratchet(_bl({"a": "killed"}), None, {}, "main") == []
+    assert "SKIPPED, explicitly" in capsys.readouterr().out
+
+
+def test_ratchet_fails_on_consistent_flip_and_floor_drop():
+    ref = _bl({"a": "killed", "b": "killed", "c": "survived"})
+    cur = _bl({"a": "survived", "b": "killed", "c": "survived"})
+    f = g.ratchet(cur, ref, {}, "main")
+    assert any("below the reference floor" in x for x in f)
+    assert any("killed in the reference baseline survive" in x and "a" in x for x in f)
+
+
+def test_ratchet_overrides_need_each_id_and_floor_drop():
+    ref = _bl({"a": "killed", "b": "killed"})
+    cur = _bl({"a": "survived", "b": "killed"})
+    assert len(g.ratchet(cur, ref, {"a": "reviewed"}, "main")) == 1          # floor drop still fails
+    assert g.ratchet(cur, ref, {"a": "reviewed", "floor_drop": "accepted"}, "main") == []
+
+
+def test_ratchet_passes_when_floor_rises_and_ids_change(capsys):
+    ref = _bl({"a": "killed", "b": "survived"})
+    cur = _bl({"a": "killed", "c": "killed"})
+    assert g.ratchet(cur, ref, {}, "main") == []
+    assert "1 mutant(s) only in the reference, 1 only in the committed" in capsys.readouterr().out
+
+
+def test_overrides_without_reason_refused(tmp_path, monkeypatch):
+    p = tmp_path / "o.json"
+    p.write_text('{"x": "  "}')
+    monkeypatch.setattr(g, "OVERRIDES", p)
+    with pytest.raises(SystemExit, match="without a written reason"):
+        g.load_overrides()
