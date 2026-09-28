@@ -125,14 +125,16 @@ def test_pct_label_rounding():
 def test_credit_summary_header_figures(capsys):
     credits.schedule(deal()).summary()
     out = capsys.readouterr().out
-    assert "QEI: $10.00MM  |  Total NMTCs (39% × QEI): $3.90MM" in out
+    assert "QEI: $10.00MM [SUPPLIED: nmtc_allocation]" in out
+    assert "Total NMTCs (39% × QEI): $3.90MM [DERIVED: 39% x QEI" in out
     assert "(@ 8.0% discount rate, before any recapture)" in out
 
 
 def test_investor_summary_header_and_reason(capsys):
     investor.analyze(deal()).summary()
     out = capsys.readouterr().out
-    assert "Equity In (t=0): $3.24MM  |  Credit Price: $0.83/$1" in out
+    assert ("Equity In (t=0): $3.24MM [DERIVED: total NMTCs x credit price]  |  "
+            "Credit Price: $0.83/$1 [SUPPLIED: credit_price]") in out
     investor.analyze(deal(unwind_year=2)).summary()
     out = capsys.readouterr().out
     assert "REFUSED: the unwind at t=2 is inside the 7-year recapture period" in out

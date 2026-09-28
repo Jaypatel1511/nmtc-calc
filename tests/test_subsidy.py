@@ -118,11 +118,11 @@ def test_summary_full_values(full, capsys):
     df = subsidy.analyze(dataclasses.replace(full, exit_fee_rate=0.005)).summary()
     v = dict(zip(df["Item"], df["Value"]))
     assert v["Investor Equity (into fund)"] == "$3.24MM"
-    assert v["Less: CDE Fee"] == "($0.20MM)"
+    assert v["CDE Fee (upfront)"] == "$0.20MM"
     assert v["B Loan to QALICB"] == "$3.04MM"
     assert v["B-Loan Forgiveness Rate"] == "100.0%"
     assert v["B Loan Forgiven at Unwind"] == "$3.04MM"
-    assert v["Less: Exit Fee"] == "($0.05MM)"
+    assert v["Exit Fee at Unwind"] == "$0.05MM"
     assert v["Net Subsidy at Unwind (t=7)"] == "$2.99MM"
     assert v["Net Subsidy as % of Project"] == "29.9%"
     assert v["QALICB Alternative Rate"] == "7.00%"
@@ -204,4 +204,4 @@ def test_sweep_net_subsidy_with_rate(full):
 def test_summary_exit_fee_scale(full):
     # 1% exit fee on 10,000,000 = 100,000 -> "$0.10MM" (divided by 1.1e6 it would be $0.09MM)
     df = subsidy.analyze(dataclasses.replace(full, exit_fee_rate=0.01)).summary()
-    assert dict(zip(df["Item"], df["Value"]))["Less: Exit Fee"] == "($0.10MM)"
+    assert dict(zip(df["Item"], df["Value"]))["Exit Fee at Unwind"] == "$0.10MM"

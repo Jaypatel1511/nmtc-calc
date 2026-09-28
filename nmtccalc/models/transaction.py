@@ -6,11 +6,11 @@ from nmtccalc.data.schema import NMTCDeal
 
 
 LEVERAGE_RATIO_NOTE = (
-    "Leverage loan / equity = (1 - 0.39p) / (0.39p) at credit price p: with "
-    "equity and the leverage loan both derived from the price, it depends on the "
-    "credit price alone and is the same for every deal at that price. (0.2.1 "
-    "called it leverage_ratio.)"
-)
+    "Leverage loan / equity = (1 - {r}p) / ({r}p) at credit price p, where {r} is "
+    "the total credit rate ({pct} of QEI): with equity and the leverage loan both "
+    "derived from the price, it depends on the credit price alone and is the same "
+    "for every deal at that price. (0.2.1 called it leverage_ratio.)"
+).format(r=f"{statute.TOTAL_CREDIT_RATE:.2f}", pct=statute.pct_label(statute.TOTAL_CREDIT_RATE))
 
 PROVENANCE_NOTE = (
     "Basis column: SUPPLIED figures are terms you entered. DERIVED figures are "

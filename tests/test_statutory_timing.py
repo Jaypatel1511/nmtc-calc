@@ -281,8 +281,8 @@ def test_waterfall_summary_default_boundary(sample_deal, capsys):
 def test_sweep_renders_refused_inside_period(sample_deal):
     df = utils.credit_price_sensitivity(dataclasses.replace(sample_deal, unwind_year=4),
                                         prices=[0.80, 0.85])
-    assert list(df["Credit-only IRR"]) == ["REFUSED", "REFUSED"]
-    assert list(df["Credit-only MOIC"]) == ["REFUSED", "REFUSED"]
+    assert list(df["Credit-only IRR"]) == ["REFUSED (unwind inside recapture period)"] * 2
+    assert list(df["Credit-only MOIC"]) == ["REFUSED (unwind inside recapture period)"] * 2
 
 
 def test_sweep_irr_column_statutory(sample_deal):

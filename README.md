@@ -7,14 +7,19 @@
 Investment Fund (investor equity plus one leverage loan), an interest-only A/B
 QLICI loan pair, and an unwind. That is enough to learn how the credit schedule,
 the capital stack, the leverage loan and the QALICB's subsidy relate to each
-other, and to see how they move. Essentially no NMTC deal of consequence is
-single-CDE, and the model leaves out much of what a real closing depends on (see
+other, and to see how they move. Many NMTC transactions combine allocations
+from more than one CDE, which this model cannot represent, and it leaves out
+much of what a real closing depends on (see
 [What this model does not do](#what-this-model-does-not-do)). Use it to
 understand a structure, not to price or underwrite one.
 
-Every figure it prints says where it came from: **SUPPLIED** by you, or
-**DERIVED** by a stated rule. Figures it cannot honestly compute are **REFUSED**
-with a reason, and everything else still renders.
+Every capital-stack figure it prints — QEI, total credits, investor equity, the
+leverage loan, the CDE fee, QLICI total and the A and B loans, wherever they
+appear — is labelled **SUPPLIED** (you entered it) or **DERIVED** (with the rule
+used). Computed results such as DSCR, the credit-only IRR or net subsidy are
+outputs of those inputs and carry the rule in their notes rather than a label.
+Figures it cannot honestly compute are **REFUSED** with a reason, and everything
+else still renders.
 
 Part of the [CDFI Superpowers](https://jaypatel1511.github.io/cdfi-superpowers/)
 portfolio of open-source tools for community development finance.
@@ -112,14 +117,17 @@ the day the equity is paid and is not discounted.
 
 `investor.analyze(deal)` reports `credit_only_irr` and `credit_only_moic`. The
 cash flows are the equity paid and the credits received **and nothing else**, so
-both figures depend on the credit price alone (credit-only MOIC = 1 / credit
-price). They are labelled credit-only, disclosed as such on every summary, and
-are not an investor IRR.
+when they are computed both figures depend on no deal input except the credit
+price (credit-only MOIC = 1 / credit price); both are REFUSED when the unwind
+falls inside the recapture period. Because the investor's cash-realization lag
+is not modeled, the credit-only IRR is an upper bound relative to an IRR on
+cash realization. They are labelled credit-only, disclosed as such on every
+summary, and are not an investor IRR.
 
 ### `subsidy` — the QALICB's side
 
 `subsidy.analyze(deal)` reports the B loan forgiven at unwind
-(`b_loan_forgiveness_rate` × B loan), the net subsidy (less the exit fee), the
+(`b_loan_forgiveness_rate` × B loan), the net subsidy (less the exit fee, which assumes the QALICB bears it; the model does not know who does), the
 `blended_qlici_coupon`, and `interest_savings_to_unwind` against the QALICB's
 own `qalicb_alternative_borrowing_rate`. **Neither rate has a default.** B-loan
 forgiveness is a negotiated exit term, and the IRS NMTC Audit Technique Guide
@@ -190,11 +198,12 @@ print(inv.credit_only_irr, inv.credit_only_moic)
 | `NegativeTrancheError` | construction would produce a negative tranche (e.g. `cde_fee_rate` > 39% × `credit_price` with the B loan derived) |
 | `UnbalancedStackError` | a SUPPLIED A and B loan do not add up to QLICI total |
 | `LeverageShortfallWarning` | the fund's QLICI interest does not cover leverage interest, or the A-loan principal does not cover the leverage principal |
-| REFUSED figures | credit-only IRR/MOIC inside the recapture period; net subsidy without a forgiveness rate; interest savings without a QALICB rate; the substantially-all test always |
+| REFUSED figures | credit-only IRR/MOIC inside the recapture period; credit-only IRR when the cash flows have no sign change (credit price at or below 0.05/0.39) or the IRR exceeds the solver's bound; DSCR when QLICI debt service is zero; net subsidy without a forgiveness rate; interest savings without a QALICB rate; the substantially-all test always |
 
 ## What this model does not do
 
-Multi-CDE structures; tax and state credits; historic tax credits; ongoing CDE or
+Multi-CDE structures; state NMTC programs and other state tax credits;
+historic tax credits; ongoing CDE or
 sub-CDE fees; fund-level taxable income, the put or disposition value, and exit
 taxes in any return; §45D(h) basis reduction and the §38 tax-capacity limit;
 the reinvestment rule as an ongoing obligation; tax on cancellation-of-debt

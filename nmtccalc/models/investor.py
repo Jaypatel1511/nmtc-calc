@@ -13,16 +13,19 @@ CREDIT_ONLY_NOTE = (
     "and nothing else: no fund-level taxable income or tax drag, no put or "
     "disposition value, no exit tax, no sub-annual timing, no §45D(h) basis "
     "reduction, no §38 tax-capacity limit. Investor equity is always total NMTCs x "
-    "credit price, so every flow is proportional to QEI and both figures depend on "
-    "the credit price ALONE: credit-only MOIC = 1 / credit price, and two deals "
-    "at the same price report the same credit-only IRR whatever their size, rates "
-    "or fees. They are not an investor IRR or MOIC."
+    "credit price, so every flow is proportional to QEI. When they are computed, "
+    "both figures depend on no deal input except the credit price: credit-only "
+    "MOIC = 1 / credit price, and two deals at the same price report the same "
+    "credit-only IRR whatever their size, rates or fees. Both are REFUSED when the "
+    "unwind falls inside the 7-year recapture period. They are not an investor "
+    "IRR or MOIC."
 )
 
 REFUSAL_RECAPTURE = (
     "REFUSED: the unwind at t={k} is inside the 7-year recapture period, so every "
-    "credit is recaptured (plus nondeductible interest this package does not "
-    "compute). No return is computed on credits the investor does not keep."
+    "credit already allowed is recaptured (plus nondeductible interest this "
+    "package does not compute) and later allowance dates are not allowable. No "
+    "return is computed on credits the investor does not keep."
 )
 
 REFUSAL_IRR_BOUND = (
@@ -63,6 +66,8 @@ class InvestorResult:
     in_recapture_period: bool
     cash_flows: list
     refused_reason: Optional[str]
+    refused_code: Optional[str]
+    basis: dict
 
     def summary(self) -> pd.DataFrame:
         rows = []
@@ -78,8 +83,9 @@ class InvestorResult:
 
         df = pd.DataFrame(rows)
         print(f"\nInvestor Economics — {self.project_name}")
-        print(f"Equity In (t=0): ${self.investor_equity/1e6:.2f}MM  |  "
-              f"Credit Price: ${self.credit_price:.2f}/$1")
+        print(f"Equity In (t=0): ${self.investor_equity/1e6:.2f}MM "
+              f"[{self.basis.get('investor_equity', '')}]  |  "
+              f"Credit Price: ${self.credit_price:.2f}/$1 [SUPPLIED: credit_price]")
         print("-" * 60)
         print(df.to_string(index=False))
         print("-" * 60)
@@ -115,6 +121,7 @@ class InvestorResult:
             "in_recapture_period": self.in_recapture_period,
             "cash_flows": self.cash_flows,
             "refused_reason": self.refused_reason,
+            "refused_code": self.refused_code,
         }
 
 
@@ -168,13 +175,16 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
 
     These cash flows carry the equity and the credits only, so the results are
     named ``credit_only_irr`` / ``credit_only_moic``. Investor equity is always
-    total NMTCs x credit price, so every flow is proportional to QEI and both
-    figures depend on the credit price alone (MOIC = 1 / credit price). The
-    disclosure ``CREDIT_ONLY_NOTE`` renders with every summary.
+    total NMTCs x credit price, so every flow is proportional to QEI and, when
+    computed, both figures depend on no deal input but the credit price
+    (MOIC = 1 / credit price). ``CREDIT_ONLY_NOTE`` renders with every summary.
 
     When ``deal.unwind_year`` is inside the 7-year recapture period, every
-    credit is recaptured (§45D(g)(3)(C), §45D(g)(2)): ``net_credits_retained``
-    is 0, ``net_benefit`` is the equity lost, and ``irr``/``moic`` are REFUSED.
+    credit already allowed is recaptured and later allowance dates are not
+    allowable (§45D(g)(3)(C), §45D(g)(2)): ``net_credits_retained`` is 0,
+    ``net_benefit`` is the equity lost, and ``credit_only_irr`` /
+    ``credit_only_moic`` are REFUSED. ``refused_code`` is "recapture",
+    "no_sign_change" or "irr_bound" when a figure is refused, else None.
 
     Args:
         deal: NMTCDeal instance
@@ -200,14 +210,18 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
     irr: Optional[float] = None
     moic: Optional[float] = None
     reason: Optional[str] = None
+    code: Optional[str] = None
     if in_period:
         reason = REFUSAL_RECAPTURE.format(k=deal.unwind_year)
+        code = "recapture"
     else:
         moic = retained / deal.investor_equity
         irr = _compute_irr(cash_flows)
         if irr is None and _has_single_outflow_then_inflows(cash_flows):
             reason = REFUSAL_IRR_BOUND.format(t0=f"${cash_flows[0]:,.2f}")
+            code = "irr_bound"
         elif irr is None:
+            code = "no_sign_change"
             reason = REFUSAL_NO_SIGN_CHANGE.format(
                 threshold=statute.APPLICABLE_PERCENTAGES[0] / statute.TOTAL_CREDIT_RATE,
                 first=f"${annual_credits[0]:,.0f}",
@@ -228,4 +242,6 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
         in_recapture_period=in_period,
         cash_flows=cash_flows,
         refused_reason=reason,
+        refused_code=code,
+        basis={k: v.label() for k, v in deal.basis.items()},
     )

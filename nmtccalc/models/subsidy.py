@@ -12,7 +12,10 @@ REFUSED_ALT_RATE = "REFUSED: qalicb_alternative_borrowing_rate not supplied"
 
 NET_SUBSIDY_NOTE = (
     "Net subsidy = B loan x b_loan_forgiveness_rate, less the exit fee paid at "
-    "unwind. It does not deduct interest paid on the QLICI loans, guarantee fees, "
+    "unwind. Deducting the exit fee here assumes the QALICB bears it; the model "
+    "does not know who does, and the deal documents decide. The rows above are "
+    "a list, not a subtraction: the B loan follows the rule in its Basis column. "
+    "Net subsidy does not deduct interest paid on the QLICI loans, guarantee fees, "
     "the put price, any tax on cancellation-of-debt income from the forgiveness, or "
     "the time value of money; it is a face-amount figure at unwind."
 )
@@ -58,6 +61,7 @@ class SubsidyResult:
     unwind_year: int
     in_recapture_period: bool
     refused: dict
+    basis: dict
 
     def summary(self) -> pd.DataFrame:
         def money(v, name):
@@ -66,27 +70,38 @@ class SubsidyResult:
         def pct(v, name, digits):
             return f"{v*100:.{digits}f}%" if v is not None else self.refused[name]
 
+        b = self.basis
+        k = self.unwind_year
         rows = [
-            ("Investor Equity (into fund)",  f"${self.investor_equity/1e6:.2f}MM"),
-            ("Less: CDE Fee",                f"(${self.cde_fee/1e6:.2f}MM)"),
-            ("B Loan to QALICB",             f"${self.qlici_b_loan/1e6:.2f}MM"),
-            ("B-Loan Forgiveness Rate",      pct(self.b_loan_forgiveness_rate, "b_loan_forgiveness_rate", 1)),
-            ("B Loan Forgiven at Unwind",    money(self.b_loan_forgiven, "b_loan_forgiven")),
-            ("Less: Exit Fee",               f"(${self.exit_fee/1e6:.2f}MM)"),
-            ("",                              ""),
-            (f"Net Subsidy at Unwind (t={self.unwind_year})", money(self.net_subsidy, "net_subsidy")),
-            ("Net Subsidy as % of Project",  pct(self.net_subsidy_pct, "net_subsidy_pct", 1)),
-            ("",                              ""),
-            ("Blended QLICI Coupon",         f"{self.blended_qlici_coupon*100:.2f}%"),
-            ("QALICB Alternative Rate",      pct(self.qalicb_alternative_borrowing_rate,
-                                                 "qalicb_alternative_borrowing_rate", 2)),
-            (f"Interest Savings to Unwind ({self.unwind_year} yrs)",
-             money(self.interest_savings_to_unwind, "interest_savings_to_unwind")),
+            ("Investor Equity (into fund)", f"${self.investor_equity/1e6:.2f}MM", b.get("investor_equity", "")),
+            ("CDE Fee (upfront)",           f"${self.cde_fee/1e6:.2f}MM", b.get("cde_fee", "")),
+            ("B Loan to QALICB",            f"${self.qlici_b_loan/1e6:.2f}MM", b.get("qlici_b_loan", "")),
+            ("B-Loan Forgiveness Rate",     pct(self.b_loan_forgiveness_rate, "b_loan_forgiveness_rate", 1),
+             "SUPPLIED: b_loan_forgiveness_rate" if self.b_loan_forgiveness_rate is not None else ""),
+            ("B Loan Forgiven at Unwind",   money(self.b_loan_forgiven, "b_loan_forgiven"),
+             "DERIVED: B loan x forgiveness rate" if self.b_loan_forgiven is not None else ""),
+            ("Exit Fee at Unwind",          f"${self.exit_fee/1e6:.2f}MM", b.get("exit_fee", "")),
+            ("",                             "", ""),
+            (f"Net Subsidy at Unwind (t={k})", money(self.net_subsidy, "net_subsidy"),
+             "DERIVED: B loan forgiven - exit fee" if self.net_subsidy is not None else ""),
+            ("Net Subsidy as % of Project", pct(self.net_subsidy_pct, "net_subsidy_pct", 1),
+             "DERIVED: net subsidy / project cost" if self.net_subsidy_pct is not None else ""),
+            ("",                             "", ""),
+            ("Blended QLICI Coupon",        f"{self.blended_qlici_coupon*100:.2f}%",
+             "DERIVED: (A x A rate + B x B rate) / QLICI total"),
+            ("QALICB Alternative Rate",     pct(self.qalicb_alternative_borrowing_rate,
+                                                "qalicb_alternative_borrowing_rate", 2),
+             "SUPPLIED: qalicb_alternative_borrowing_rate"
+             if self.qalicb_alternative_borrowing_rate is not None else ""),
+            (f"Interest Savings to Unwind ({k} yrs)",
+             money(self.interest_savings_to_unwind, "interest_savings_to_unwind"),
+             "DERIVED: QLICI principal x (alt rate - coupons) x years"
+             if self.interest_savings_to_unwind is not None else ""),
         ]
 
-        df = pd.DataFrame(rows, columns=["Item", "Value"])
+        df = pd.DataFrame(rows, columns=["Item", "Value", "Basis"])
         print(f"\nNet Subsidy Analysis — {self.project_name}")
-        print("=" * 60)
+        print("=" * 100)
         print(df.to_string(index=False))
         print()
         print("  " + NET_SUBSIDY_NOTE)
@@ -185,4 +200,5 @@ def analyze(deal: NMTCDeal) -> SubsidyResult:
         unwind_year=k,
         in_recapture_period=statute.unwind_in_recapture_period(k),
         refused=refused,
+        basis={k: v.label() for k, v in deal.basis.items()},
     )

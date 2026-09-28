@@ -29,6 +29,7 @@ class CreditScheduleResult:
     unwind_year: int
     in_recapture_period: bool
     net_credits_retained: float
+    basis: dict
 
     def summary(self) -> pd.DataFrame:
         rows = []
@@ -46,9 +47,9 @@ class CreditScheduleResult:
 
         df = pd.DataFrame(rows)
         print(f"\nNMTC Credit Schedule — {self.project_name}")
-        print(f"QEI: ${self.qei/1e6:.2f}MM  |  Total NMTCs "
-              f"({statute.pct_label(statute.TOTAL_CREDIT_RATE)} × QEI): "
-              f"${self.total_nmtcs/1e6:.2f}MM")
+        print(f"QEI: ${self.qei/1e6:.2f}MM [{self.basis.get('qei', '')}]")
+        print(f"Total NMTCs ({statute.pct_label(statute.TOTAL_CREDIT_RATE)} × QEI): "
+              f"${self.total_nmtcs/1e6:.2f}MM [{self.basis.get('total_nmtcs', '')}]")
         print("-" * 72)
         print(df.to_string(index=False))
         print("-" * 72)
@@ -136,4 +137,5 @@ def schedule(deal: NMTCDeal) -> CreditScheduleResult:
         unwind_year=deal.unwind_year,
         in_recapture_period=in_period,
         net_credits_retained=net_retained,
+        basis={k: v.label() for k, v in deal.basis.items()},
     )

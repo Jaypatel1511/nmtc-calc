@@ -17,7 +17,11 @@ FUND_LINE_DISCLOSURE = (
     "has no input for ongoing CDE or sub-CDE fees, which would reduce that "
     "amount, nor for fund reserves or other sources, which could cover a gap. "
     "The fund line is therefore neither a floor nor a ceiling on the fund's "
-    "true position."
+    "true position. To bracket it, the shortfall is also shown counting A-loan "
+    "interest only, since B interest reaches the fund only net of CDE costs this "
+    "package takes no input for. The principal gap counts A-loan principal only; "
+    "any B-loan principal repaid rather than forgiven would also reach the fund, "
+    "so the principal gap shown is conservative (it can overstate the gap)."
 )
 
 GUARANTEE_FEE_NOTE = (
@@ -103,6 +107,9 @@ class WaterfallResult:
     annual_leverage_interest: float
     annual_fund_qlici_interest: float
     annual_fund_shortfall: float
+    annual_fund_shortfall_a_only: float
+    qlici_b_loan: float
+    basis: dict
     total_fund_shortfall: float
     leverage_principal_due: float
     a_loan_principal_repaid: float
@@ -136,7 +143,12 @@ class WaterfallResult:
         print(f"  Leverage Loan:              ${self.leverage_loan:,.0f}")
         print(f"  Annual Leverage Interest:   ${self.annual_leverage_interest:,.0f}")
         print(f"  QLICI Interest to Fund:     ${self.annual_fund_qlici_interest:,.0f}")
-        print(f"  Annual Fund Shortfall:      ${self.annual_fund_shortfall:,.0f}")
+        print(f"  Leverage Loan basis:        {self.basis.get('leverage_loan', '')}")
+        print(f"  A / B Loan principal:       ${self.a_loan_principal_repaid:,.0f} "
+              f"[{self.basis.get('qlici_a_loan', '')}] / ${self.qlici_b_loan:,.0f} "
+              f"[{self.basis.get('qlici_b_loan', '')}]")
+        print(f"  Annual Fund Shortfall:      ${self.annual_fund_shortfall:,.0f}  (A and B interest)")
+        print(f"  Shortfall, A interest only: ${self.annual_fund_shortfall_a_only:,.0f}")
         print(f"  Principal Gap at Unwind:    ${self.leverage_principal_gap:,.0f}")
         for msg in self.warning_messages:
             print(f"  {msg}")
@@ -193,6 +205,7 @@ class WaterfallResult:
             "annual_leverage_interest": self.annual_leverage_interest,
             "annual_fund_qlici_interest": self.annual_fund_qlici_interest,
             "annual_fund_shortfall": self.annual_fund_shortfall,
+            "annual_fund_shortfall_a_only": self.annual_fund_shortfall_a_only,
             "total_fund_shortfall": self.total_fund_shortfall,
             "leverage_principal_due": self.leverage_principal_due,
             "a_loan_principal_repaid": self.a_loan_principal_repaid,
@@ -310,6 +323,9 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
         annual_leverage_interest=lev_interest,
         annual_fund_qlici_interest=fund_qlici_interest,
         annual_fund_shortfall=annual_short,
+        annual_fund_shortfall_a_only=max(0.0, lev_interest - a_interest),
+        qlici_b_loan=deal.qlici_b_loan,
+        basis={k: v.label() for k, v in deal.basis.items()},
         total_fund_shortfall=annual_short * k,
         leverage_principal_due=deal.leverage_loan,
         a_loan_principal_repaid=deal.qlici_a_loan,

@@ -25,11 +25,18 @@ written (2026-09-27), not recalled:
     redeemed by such entity."
 
 26 CFR §1.45D-1(c)(5)(i):
-    "the 7-year credit period means the period of 7 years beginning on the
-    date the qualified equity investment is initially made."
+    "For purposes of this paragraph (c)(5)(i), the 7-year credit period means
+    the period of 7 years beginning on the date the qualified equity
+    investment is initially made."  The definition is expressly limited to
+    that paragraph (the substantially-all test), so it is not relied on alone
+    for the one-period conclusion below.
 
 IRS, New Markets Tax Credit Audit Technique Guide (LMSB-04-0510-016, May
-2010), p. 3:
+2010), credit overview (retrieved twice; one retrieval placed these on p. 2,
+the other the 39% sentence on p. 3, so no page is cited for them):
+    "In other words, the credit period is the seven-year period beginning on
+    the date a QEI is initially made, even though the credit is allowable on
+    the first day of each credit year."
     "The credit provided to the investor equals 39% of the QEI and is claimed
     over the seven-year credit period."
 
@@ -38,11 +45,15 @@ Consequences this package relies on:
 * There are SEVEN credit allowance dates, at t = 0, 1, ..., 6 years after the
   QEI is made. The first credit falls on the same date as the equity is paid.
   The last falls at t = 6.
-* The 7-year credit period (§1.45D-1(c)(5)(i)) and the 7-year recapture
-  period (§45D(g)(1)) both begin on the QEI date and run to the seventh
-  anniversary, t = 7. They are one period, not two. The seventh-year credit
-  has no allowance date at t = 7: the last year of the period (t = 6 to t = 7)
-  carries full recapture exposure after the last credit is earned.
+* The credit period (the ATG: "the seven-year period beginning on the date a
+  QEI is initially made"; §1.45D-1(c)(5)(i) defines it the same way for the
+  substantially-all test) and the recapture period (§45D(g)(1): "the 7-year
+  period beginning on the date of the original issue") both begin on the QEI
+  date and run to the seventh anniversary, t = 7. They are one period, not two.
+* The seventh and last credit falls at t = 6, the start of the period's
+  seventh year. No credit falls at t = 7. So the final year of the period,
+  t = 6 to t = 7, carries full recapture exposure after the last credit has
+  been earned.
 * 39% is not stated in the statute or the regulation. It is the sum of the
   §45D(a)(2) percentages over the §45D(a)(3) dates, (3 × 5%) + (4 × 6%), and
   is stated expressly in the IRS ATG, which is what it is cited to. It is
@@ -69,7 +80,7 @@ APPLICABLE_PERCENTAGES = tuple(
     for i in range(len(CREDIT_ALLOWANCE_YEARS))
 )
 
-# Derived, not typed. Cited to the IRS ATG (p. 3), not to §45D; see module docstring.
+# Derived, not typed. Cited to the IRS ATG, not to §45D; see module docstring.
 TOTAL_CREDIT_RATE = sum(APPLICABLE_PERCENTAGES)
 
 # §45D(g)(1) / §1.45D-1(c)(5)(i): 7 years beginning on the QEI date.
@@ -77,7 +88,7 @@ CREDIT_PERIOD_YEARS = 7
 RECAPTURE_PERIOD_END_YEAR = CREDIT_PERIOD_YEARS
 
 CITATION_SCHEDULE = "26 U.S.C. §45D(a)(2)-(3)"
-CITATION_TOTAL_RATE = "IRS NMTC Audit Technique Guide (May 2010), p. 3"
+CITATION_TOTAL_RATE = "IRS NMTC Audit Technique Guide (May 2010), credit overview"
 CITATION_RECAPTURE_PERIOD = "26 U.S.C. §45D(g)(1); 26 CFR §1.45D-1(c)(5)(i)"
 CITATION_REDEMPTION = "26 U.S.C. §45D(g)(3)(C)"
 CITATION_RECAPTURE_AMOUNT = "26 U.S.C. §45D(g)(2)"
@@ -132,8 +143,9 @@ RECAPTURE_DISCLOSURE = (
     "The structure unwinds at t={k}, inside the 7-year recapture period that "
     "runs from the QEI date to t=7 ({period}). Under this package's definition "
     "an unwind redeems the QEI, and redemption of the QEI by the CDE is a "
-    "recapture event ({redemption}). The credit recapture amount is every "
-    "credit already allowed plus interest at the §6621 underpayment rate, and "
+    "recapture event ({redemption}). Every credit already allowed is recaptured "
+    "and later allowance dates are not allowable. The credit recapture amount is "
+    "every credit already allowed plus interest at the §6621 underpayment rate, and "
     "that interest is not deductible ({amount}). This package does not compute "
     "that interest. It assumes every credit claimed reduced tax liability "
     "(recapture reaches only such credits, §45D(g)(4)(A)), and it does not "
@@ -168,7 +180,9 @@ TIMING_CONVENTION_DISCLOSURE = (
     "date) through t=6 ({schedule}). The first credit falls on the date the "
     "equity is paid and is not discounted. The investor realizes a credit in "
     "cash through estimated payments and returns filed for the taxable year in "
-    "which the allowance date falls, and that lag is not modeled."
+    "which the allowance date falls, and that lag is not modeled. Because the lag "
+    "would push every credit later, the credit-only IRR here is an upper bound "
+    "relative to an IRR on cash realization."
 )
 
 

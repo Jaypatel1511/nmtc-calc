@@ -1,10 +1,17 @@
 import pandas as pd
 
 
+REFUSED_CELL = {
+    "recapture": "REFUSED (unwind inside recapture period)",
+    "no_sign_change": "REFUSED (no sign change)",
+    "irr_bound": "REFUSED (IRR above solver bound)",
+}
+
 SWEEP_INVARIANCE_NOTE = (
-    "The Credit-only MOIC and Credit-only IRR columns depend on the credit price "
-    "ALONE: they are the same for every deal at the same prices, whatever its size, "
-    "rates or fees (MOIC = 1 / price). They are a lookup table of the credit price, "
+    "Where computed, the Credit-only MOIC and Credit-only IRR columns depend on no "
+    "deal input except the credit price: they are the same for every deal at the "
+    "same prices, whatever its size, rates or fees (MOIC = 1 / price). They are "
+    "REFUSED when the unwind falls inside the recapture period. They are a lookup table of the credit price, "
     "not this deal's investor returns. Equity and leverage scale with QEI; net "
     "subsidy depends on the A/B split, the fee and the forgiveness rate."
 )
@@ -51,9 +58,10 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
             "Credit Price": f"${price:.2f}",
             "Equity ($MM)": round(d.investor_equity / 1e6, 2),
             "Leverage Loan ($MM)": round(d.leverage_loan / 1e6, 2),
-            "Credit-only MOIC": round(inv.credit_only_moic, 3) if inv.credit_only_moic is not None else "REFUSED",
+            "Credit-only MOIC": (round(inv.credit_only_moic, 3) if inv.credit_only_moic is not None
+                                 else REFUSED_CELL[inv.refused_code]),
             "Credit-only IRR": (f"{inv.credit_only_irr * 100:.1f}%" if inv.credit_only_irr is not None
-                                else "REFUSED"),
+                                else REFUSED_CELL[inv.refused_code]),
             "Net Subsidy ($MM)": round(sub.net_subsidy / 1e6, 2) if sub.net_subsidy is not None else "REFUSED",
             "Subsidy % of Cost": (f"{sub.net_subsidy_pct * 100:.1f}%" if sub.net_subsidy_pct is not None
                                   else "REFUSED (no forgiveness rate)"),
