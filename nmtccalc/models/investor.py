@@ -25,6 +25,12 @@ REFUSAL_RECAPTURE = (
     "compute). No return is computed on credits the investor does not keep."
 )
 
+REFUSAL_IRR_BOUND = (
+    "REFUSED: the IRR exceeds the solver's bound (1e9, i.e. 100,000,000,000%). "
+    "The net t=0 outlay is {t0} against later credits; a figure this size is an "
+    "artifact of a near-zero outlay, not a return. Credit-only MOIC is unaffected."
+)
+
 REFUSAL_NO_SIGN_CHANGE = (
     "REFUSED: the cash flows have no sign change, so no IRR exists. At a credit "
     "price at or below {threshold:.4f} the t=0 credit ({first}) is at least the "
@@ -199,7 +205,9 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
     else:
         moic = retained / deal.investor_equity
         irr = _compute_irr(cash_flows)
-        if irr is None:
+        if irr is None and _has_single_outflow_then_inflows(cash_flows):
+            reason = REFUSAL_IRR_BOUND.format(t0=f"${cash_flows[0]:,.2f}")
+        elif irr is None:
             reason = REFUSAL_NO_SIGN_CHANGE.format(
                 threshold=statute.APPLICABLE_PERCENTAGES[0] / statute.TOTAL_CREDIT_RATE,
                 first=f"${annual_credits[0]:,.0f}",

@@ -28,6 +28,12 @@ GUARANTEE_FEE_NOTE = (
     "either way."
 )
 
+DSCR_REFUSED_ZERO_DS = (
+    "DSCR REFUSED: debt service <= 0 (the A and B coupons are both 0%{fee}), so "
+    "coverage is undefined. Net cash flow is still shown."
+)
+DSCR_NOT_COMPUTED_NO_NOI = "DSCR not computed: noi was not supplied."
+
 FLAT_DSCR_NOTE = (
     "This is one stabilized figure, not a schedule: debt service is interest-only "
     "on fixed balances, and NOI {how}, so every row is the same. Supply noi as a "
@@ -89,6 +95,7 @@ class WaterfallResult:
     min_dscr: Optional[float]
     dscr_varies: bool
     guarantee_fee_in_dscr: bool
+    dscr_refused_reason: Optional[str]
     noi_is_series: bool
     unwind_year: int
     in_recapture_period: bool
@@ -113,7 +120,8 @@ class WaterfallResult:
                 "B Int.": f"${yr.b_loan_interest:,.0f}",
                 "Guar. Fee": f"${yr.guarantee_fee:,.0f}" if yr.guarantee_fee else "—",
                 "Total DS": f"${yr.total_debt_service:,.0f}",
-                "DSCR": f"{yr.dscr:.2f}x" if yr.dscr is not None else "—",
+                "DSCR": (f"{yr.dscr:.2f}x" if yr.dscr is not None
+                         else ("REFUSED" if self.dscr_refused_reason else "—")),
                 "Net CF": f"${yr.net_cash_flow:,.0f}" if yr.net_cash_flow is not None else "—",
                 "Lev. Int.": f"${yr.leverage_loan_interest:,.0f}",
                 "Fund Net": f"${yr.fund_net_cash_flow:,.0f}",
@@ -149,6 +157,10 @@ class WaterfallResult:
             print("  " + statute.recapture_disclosure(self.unwind_year))
         elif self.unwind_year == statute.RECAPTURE_PERIOD_END_YEAR:
             print("  " + statute.boundary_disclosure())
+        if self.dscr_refused_reason:
+            print("\n" + self.dscr_refused_reason)
+        elif self.avg_dscr is None:
+            print("\n" + DSCR_NOT_COMPUTED_NO_NOI)
         if self.avg_dscr is not None:
             print("\n" + GUARANTEE_FEE_NOTE.format(
                 treatment="included in" if self.guarantee_fee_in_dscr else "excluded from",
@@ -173,6 +185,7 @@ class WaterfallResult:
             "min_dscr": self.min_dscr,
             "dscr_varies": self.dscr_varies,
             "guarantee_fee_in_dscr": self.guarantee_fee_in_dscr,
+            "dscr_refused_reason": self.dscr_refused_reason,
             "noi_is_series": self.noi_is_series,
             "unwind_year": self.unwind_year,
             "in_recapture_period": self.in_recapture_period,
@@ -286,6 +299,9 @@ def analyze(deal: NMTCDeal) -> WaterfallResult:
         avg_dscr=sum(dscrs) / len(dscrs) if dscrs else None,
         dscr_varies=dscr_varies,
         guarantee_fee_in_dscr=deal.include_guarantee_fee_in_dscr,
+        dscr_refused_reason=(DSCR_REFUSED_ZERO_DS.format(
+            fee="" if not deal.include_guarantee_fee_in_dscr else ", and the guarantee fee is 0")
+            if schedule is not None and dscr_denominator <= 0 else None),
         noi_is_series=deal.noi_is_series,
         min_dscr=min(dscrs) if dscrs else None,
         unwind_year=k,

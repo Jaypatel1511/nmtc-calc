@@ -178,11 +178,50 @@ def test_net_cash_flow_literal_with_guarantee_fee():
     assert r.years[0].net_cash_flow == pytest.approx(197_665)
 
 
-def test_dscr_none_when_debt_service_zero():
+def test_dscr_refused_when_debt_service_zero(capsys):
+    # X1: this used to go silent -- every DSCR None and the DSCR line vanished.
     r = waterfall.analyze(deal(noi=600_000, qlici_a_loan_rate=0.0, qlici_b_loan_rate=0.0,
                                leverage_loan_rate=0.0))
     assert all(y.dscr is None for y in r.years)
     assert r.avg_dscr is None and r.min_dscr is None
+    assert r.dscr_refused_reason == waterfall.DSCR_REFUSED_ZERO_DS.format(fee="")
+    df = r.summary()
+    out = capsys.readouterr().out
+    assert ("DSCR REFUSED: debt service <= 0 (the A and B coupons are both 0%), so coverage "
+            "is undefined. Net cash flow is still shown.") in out
+    assert list(df["DSCR"]) == ["REFUSED"] * 7
+    assert r.to_dict()["dscr_refused_reason"].startswith("DSCR REFUSED")
+
+
+def test_dscr_refused_mentions_fee_when_included():
+    r = waterfall.analyze(deal(noi=600_000, qlici_a_loan_rate=0.0, qlici_b_loan_rate=0.0,
+                               leverage_loan_rate=0.0, include_guarantee_fee_in_dscr=True))
+    assert "and the guarantee fee is 0" in r.dscr_refused_reason
+
+
+def test_dscr_not_computed_without_noi_says_so(capsys):
+    r = waterfall.analyze(deal())
+    assert r.dscr_refused_reason is None
+    df = r.summary()
+    assert "DSCR not computed: noi was not supplied." in capsys.readouterr().out
+    assert list(df["DSCR"]) == ["—"] * 7
+
+
+def test_dscr_line_silent_for_neither_refusal_when_computed(capsys):
+    waterfall.analyze(deal(noi=600_000)).summary()
+    out = capsys.readouterr().out
+    assert "DSCR REFUSED" not in out and "DSCR not computed" not in out
+
+
+def test_irr_bound_reason_is_truthful():
+    # X10: at p = 0.05/0.39 + 1e-10 the flows DO change sign; the IRR exceeds the bound.
+    r = investor.analyze(deal(credit_price=0.05 / 0.39 + 1e-10))
+    assert r.credit_only_irr is None
+    assert r.refused_reason.startswith("REFUSED: the IRR exceeds the solver's bound (1e9")
+    assert "no sign change" not in r.refused_reason
+    assert "$-0.00" in r.refused_reason
+    # MOIC is credits / equity = 1/p, about 7.80x -- not an artifact, so it renders.
+    assert r.credit_only_moic == pytest.approx(7.8, abs=1e-6)
 
 
 def test_dscr_computed_for_tiny_debt_service():
