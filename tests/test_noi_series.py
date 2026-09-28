@@ -72,7 +72,7 @@ def test_series_zero_allowed(sample_deal):
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), "600000", True])
 def test_scalar_noi_must_be_finite(sample_deal, bad):
-    with pytest.raises(ValueError, match="noi must be a finite number, a sequence of them, or None"):
+    with pytest.raises(ValueError, match="noi must be a finite non-negative number, a sequence of them with one entry per year 1..unwind_year, or None"):
         dataclasses.replace(sample_deal, noi=bad)
 
 

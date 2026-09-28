@@ -83,12 +83,12 @@ def test_noi_zero_and_small_allowed(v):
 
 
 def test_guarantee_fee_negative_refused():
-    with pytest.raises(ValueError, match="guarantee_fee_rate must be non-negative"):
+    with pytest.raises(ValueError, match="guarantee_fee_rate must be at least 0 and below 1"):
         deal(guarantee_fee_rate=-0.001)
 
 
 def test_exit_fee_negative_refused():
-    with pytest.raises(ValueError, match="exit_fee_rate must be non-negative"):
+    with pytest.raises(ValueError, match="exit_fee_rate must be at least 0 and below 1"):
         deal(exit_fee_rate=-0.001)
 
 

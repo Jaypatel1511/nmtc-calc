@@ -54,7 +54,23 @@ def _is_finite_real(value) -> bool:
     return not isinstance(value, bool) and isinstance(value, numbers.Real) and math.isfinite(value)
 
 
-@dataclass
+# Rate fields that must lie in [0, 1). Zero is allowed for each: 0% QLICI
+# coupons are plausible (and DSCR then REFUSES, see waterfall), and 0% fees
+# mean "no fee". credit_price, cde_fee_rate and discount_rate keep their
+# stricter open-interval checks below.
+_RATE_FIELDS = (
+    "leverage_loan_rate", "qlici_a_loan_rate", "qlici_b_loan_rate",
+    "guarantee_fee_rate", "exit_fee_rate",
+)
+
+# Upper bound on unwind_year. NOT a statutory limit: a sanity bound. The model
+# carries interest-only balances with no amortization, so a very long hold is
+# not modeled faithfully, and a value above this is almost always a unit
+# mistake (a calendar year such as 2033 typed as years after the QEI date).
+MAX_UNWIND_YEAR = 30
+
+
+@dataclass(frozen=True)
 class NMTCDeal:
     """
     Core input contract for an NMTC leveraged transaction.
@@ -118,16 +134,25 @@ class NMTCDeal:
     include_guarantee_fee_in_dscr: bool = HOUSE_GUARANTEE_FEE_IN_DSCR
 
     def __post_init__(self):
+        # Frozen dataclass: values are normalised with object.__setattr__ here,
+        # and attribute assignment after construction raises
+        # FrozenInstanceError, so no refusal below can be bypassed by mutation.
+        # dataclasses.replace() and the with_* methods build a new instance and
+        # re-run every check.
         for name in _FLOAT_FIELDS:
             value = getattr(self, name)
-            if isinstance(value, bool) or not isinstance(value, numbers.Real) or not math.isfinite(value):
+            if not _is_finite_real(value):
                 raise ValueError(f"{name} must be a finite number")
+            object.__setattr__(self, name, float(value))
         for name in _OPTIONAL_FLOAT_FIELDS:
             value = getattr(self, name)
-            if value is not None and (
-                isinstance(value, bool) or not isinstance(value, numbers.Real) or not math.isfinite(value)
-            ):
-                raise ValueError(f"{name} must be a finite number or None")
+            if value is not None:
+                if not _is_finite_real(value):
+                    raise ValueError(f"{name} must be a finite number or None")
+                object.__setattr__(self, name, float(value))
+        for name in _RATE_FIELDS:
+            if not (0 <= getattr(self, name) < 1):
+                raise ValueError(f"{name} must be at least 0 and below 1 (e.g. 0.045)")
         if self.total_project_cost <= 0:
             raise ValueError("total_project_cost must be positive")
         if self.nmtc_allocation <= 0:
@@ -138,10 +163,15 @@ class NMTCDeal:
             raise ValueError("credit_price must be between 0 and 1 (e.g. 0.83)")
         if not (0 < self.cde_fee_rate < 1):
             raise ValueError("cde_fee_rate must be between 0 and 1 (e.g. 0.02)")
-        if isinstance(self.unwind_year, bool) or not isinstance(self.unwind_year, int):
+        if isinstance(self.unwind_year, bool) or not isinstance(self.unwind_year, numbers.Integral):
             raise ValueError("unwind_year must be a whole number of years after the QEI date")
+        object.__setattr__(self, "unwind_year", int(self.unwind_year))
         if self.unwind_year < 1:
             raise ValueError("unwind_year must be at least 1 (years after the QEI date)")
+        if self.unwind_year > MAX_UNWIND_YEAR:
+            raise ValueError(
+                f"unwind_year must be at most {MAX_UNWIND_YEAR} (years after the QEI date, "
+                f"not a calendar year); see MAX_UNWIND_YEAR")
         if not (0 < self.discount_rate < 1):
             raise ValueError("discount_rate must be between 0 and 1 (e.g. 0.08)")
         self._validate_noi()
@@ -152,32 +182,37 @@ class NMTCDeal:
         if self.qalicb_alternative_borrowing_rate is not None and \
                 not (0 <= self.qalicb_alternative_borrowing_rate < 1):
             raise ValueError("qalicb_alternative_borrowing_rate must be at least 0 and below 1")
-        if self.guarantee_fee_rate < 0:
-            raise ValueError("guarantee_fee_rate must be non-negative")
-        if self.exit_fee_rate < 0:
-            raise ValueError("exit_fee_rate must be non-negative")
         self._refuse_negative_tranches()
         self._refuse_unbalanced_split()
 
+    _NOI_MESSAGE = ("noi must be a finite non-negative number, a sequence of them with "
+                    "one entry per year 1..unwind_year, or None")
+
     def _validate_noi(self):
-        if self.noi is None:
+        noi = self.noi
+        if noi is None:
             return
-        if isinstance(self.noi, (list, tuple)):
-            if len(self.noi) != self.unwind_year:
-                raise ValueError(
-                    f"noi series has {len(self.noi)} entries; it needs exactly one per "
-                    f"year 1..unwind_year ({self.unwind_year})")
-            for v in self.noi:
-                if not _is_finite_real(v):
-                    raise ValueError("noi series entries must be finite numbers")
-                if v < 0:
-                    raise ValueError("noi must be non-negative")
-            self.noi = tuple(self.noi)
+        if _is_finite_real(noi):
+            if noi < 0:
+                raise ValueError("noi must be non-negative")
+            object.__setattr__(self, "noi", float(noi))
             return
-        if not _is_finite_real(self.noi):
-            raise ValueError("noi must be a finite number, a sequence of them, or None")
-        if self.noi < 0:
-            raise ValueError("noi must be non-negative")
+        if isinstance(noi, numbers.Real) or isinstance(noi, (str, bytes)) or isinstance(noi, bool):
+            raise ValueError(self._NOI_MESSAGE)
+        try:
+            values = tuple(noi)       # list, tuple, range, numpy array, pandas Series
+        except TypeError:
+            raise ValueError(self._NOI_MESSAGE) from None
+        if len(values) != self.unwind_year:
+            raise ValueError(
+                f"noi series has {len(values)} entries; it needs exactly one per "
+                f"year 1..unwind_year ({self.unwind_year})")
+        for v in values:
+            if not _is_finite_real(v):
+                raise ValueError("noi series entries must be finite numbers")
+            if v < 0:
+                raise ValueError("noi must be non-negative")
+        object.__setattr__(self, "noi", tuple(float(v) for v in values))
 
     @property
     def noi_schedule(self) -> Optional[list]:
