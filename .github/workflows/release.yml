@@ -108,6 +108,15 @@ jobs:
 
       - name: Confirm the installed version matches the tag
         run: |
+          # Run from an empty directory: `python -c` puts the cwd on sys.path,
+          # and from the checkout root that imports ./nmtccalc, not the wheel.
+          cd "$(mktemp -d)"
+          ORIGIN=$(/tmp/wheel_test_venv/bin/python -c "import nmtccalc; print(nmtccalc.__file__)")
+          echo "import resolved to: ${ORIGIN}"
+          case "${ORIGIN}" in
+            *"/site-packages/"*) ;;
+            *) echo "ERROR: nmtccalc resolved to ${ORIGIN}, not the installed wheel"; exit 1 ;;
+          esac
           INSTALLED=$(/tmp/wheel_test_venv/bin/python -c \
             "import nmtccalc; print(nmtccalc.__version__)")
           TAG="${GITHUB_REF#refs/tags/v}"
@@ -125,10 +134,32 @@ jobs:
             --no-header \
             --import-mode=importlib
 
+  # ── Step 3b: The sdist ships its own suite and passes it ─────────────────
+  # Tests the tarball that will be published, not a fresh build.
+  test-sdist:
+    name: Test sdist
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: dist-wheel
+          path: dist/
+
+      - name: Check the built sdist
+        run: python tools/check_sdist.py --sdist dist/*.tar.gz
+
   # ── Step 4: Publish to PyPI — only after guard + build + all tests pass ───
   publish:
     name: Publish to PyPI
-    needs: [verify-version, build, test-wheel]
+    needs: [verify-version, build, test-wheel, test-sdist]
     # Runner pinned, not `ubuntu-latest`: actions/python-versions ships NO Python
     # 3.9 build for ubuntu-26.04, and the `ubuntu-latest` label moves to Ubuntu 26
     # on 2026-10-19. Remove this pin once this repo's Python floor rises above 3.9

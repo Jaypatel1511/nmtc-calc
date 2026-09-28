@@ -1,21 +1,38 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "nmtc-calc"
-version = "0.2.1"
-description = "Python calculator for New Markets Tax Credit (NMTC) leveraged transactions"
+version = "0.3.0"
+description = "A pedagogical model of a simplified single-CDE New Markets Tax Credit (NMTC) leveraged structure"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Jay Patel", email = "thejaypatel1511@gmail.com"}]
+keywords = ["NMTC", "new markets tax credit", "CDFI", "community development", "tax credit"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Education",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
 dependencies = [
     "pandas>=1.4.0",
     "numpy>=1.21.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "jupyter", "ipykernel"]
+dev = ["pytest>=7.0", "build", "jupyter", "ipykernel"]
 
 [project.urls]
 Homepage = "https://jaypatel1511.github.io/cdfi-superpowers/"
@@ -23,3 +40,9 @@ Repository = "https://github.com/Jaypatel1511/nmtc-calc"
 Documentation = "https://github.com/Jaypatel1511/nmtc-calc#readme"
 Issues = "https://github.com/Jaypatel1511/nmtc-calc/issues"
 Changelog = "https://github.com/Jaypatel1511/nmtc-calc/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["nmtccalc", "nmtccalc.*"]
+
+[tool.setuptools.package-data]
+nmtccalc = ["py.typed"]

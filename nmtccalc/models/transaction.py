@@ -1,7 +1,24 @@
 from dataclasses import dataclass
 import pandas as pd
 
+from nmtccalc import statute
 from nmtccalc.data.schema import NMTCDeal
+from nmtccalc._format import money
+
+
+LEVERAGE_RATIO_NOTE = (
+    "Leverage loan / equity = (1 - {r}p) / ({r}p) at credit price p, where {r} is "
+    "the total credit rate ({pct} of QEI): with equity and the leverage loan both "
+    "derived from the price, it depends on the credit price alone and is the same "
+    "for every deal at that price. (0.2.1 called it leverage_ratio.)"
+).format(r=f"{statute.TOTAL_CREDIT_RATE:.2f}", pct=statute.pct_label(statute.TOTAL_CREDIT_RATE))
+
+PROVENANCE_NOTE = (
+    "Basis column: SUPPLIED figures are terms you entered. DERIVED figures are "
+    "computed by the rule shown and are screening-time estimates, not closing "
+    "terms. Supply the A/B split with qlici_a_loan_amount / qlici_b_loan_amount "
+    "where real terms exist."
+)
 
 
 @dataclass
@@ -19,37 +36,57 @@ class TransactionResult:
     qlici_b_loan: float
     credit_price: float
     nmtc_coverage: float        # NMTCs as % of total project cost
-    leverage_ratio: float       # leverage loan / investor equity
+    leverage_loan_to_equity_ratio: float  # leverage loan / investor equity -- a function of credit price alone
+    closing_qlici_deployment_ratio: float  # QLICI total / QEI at closing, face amounts
+    substantially_all_test: str
+    substantially_all_refusal_reasons: tuple
+    basis: dict  # quantity -> "DERIVED: rule" / "SUPPLIED: field"
+    provenance: dict  # quantity -> "DERIVED" / "SUPPLIED"
 
     def summary(self) -> pd.DataFrame:
+        b = self.basis
+        total = statute.pct_label(statute.TOTAL_CREDIT_RATE)
         rows = [
-            ("Total Project Cost",      f"${self.total_project_cost/1e6:.2f}MM"),
-            ("── QEI (NMTC Allocation)", f"${self.qei/1e6:.2f}MM"),
-            ("── Total NMTCs (39% × QEI)", f"${self.total_nmtcs/1e6:.2f}MM"),
-            ("",                         ""),
-            ("INVESTMENT FUND",          ""),
-            ("── Investor Equity",       f"${self.investor_equity/1e6:.2f}MM"),
-            ("── Leverage Loan",         f"${self.leverage_loan/1e6:.2f}MM"),
-            ("── Total QEI",             f"${self.qei/1e6:.2f}MM"),
-            ("",                         ""),
-            ("CDE / SUB-CDE",            ""),
-            ("── CDE Fee",               f"${self.cde_fee/1e6:.2f}MM"),
-            ("── Total QLICI",           f"${self.qlici_total/1e6:.2f}MM"),
-            ("",                         ""),
-            ("QLICI TO QALICB",          ""),
-            ("── A Loan (Senior)",       f"${self.qlici_a_loan/1e6:.2f}MM"),
-            ("── B Loan (Subordinate)",  f"${self.qlici_b_loan/1e6:.2f}MM"),
-            ("",                         ""),
-            ("KEY RATIOS",               ""),
-            ("── Credit Price",          f"${self.credit_price:.2f} per $1 of NMTCs"),
-            ("── NMTC Coverage",         f"{self.nmtc_coverage*100:.1f}% of project cost"),
-            ("── Leverage Ratio",        f"{self.leverage_ratio:.2f}x"),
+            ("Total Project Cost",      f"{money(self.total_project_cost/1e6, '.2f')}MM", b.get("total_project_cost", "")),
+            ("── QEI (NMTC Allocation)", f"{money(self.qei/1e6, '.2f')}MM", b.get("qei", "")),
+            (f"── Total NMTCs ({total} × QEI)", f"{money(self.total_nmtcs/1e6, '.2f')}MM", b.get("total_nmtcs", "")),
+            ("",                         "", ""),
+            ("INVESTMENT FUND",          "", ""),
+            ("── Investor Equity",       f"{money(self.investor_equity/1e6, '.2f')}MM", b.get("investor_equity", "")),
+            ("── Leverage Loan",         f"{money(self.leverage_loan/1e6, '.2f')}MM", b.get("leverage_loan", "")),
+            ("── Total QEI",             f"{money(self.qei/1e6, '.2f')}MM", b.get("qei", "")),
+            ("",                         "", ""),
+            ("CDE / SUB-CDE",            "", ""),
+            ("── CDE Fee",               f"{money(self.cde_fee/1e6, '.2f')}MM", b.get("cde_fee", "")),
+            ("── Total QLICI",           f"{money(self.qlici_total/1e6, '.2f')}MM", b.get("qlici_total", "")),
+            ("── Closing-date QLICI deployment ratio", f"{self.closing_qlici_deployment_ratio*100:.1f}% of QEI",
+             "DERIVED: QLICI total / QEI, face, at closing"),
+            ("── Substantially-all test", self.substantially_all_test,
+             f"REFUSED: not computed; five reasons below ({statute.CITATION_SUBSTANTIALLY_ALL})"),
+            ("",                         "", ""),
+            ("QLICI TO QALICB",          "", ""),
+            ("── A Loan (Senior)",       f"{money(self.qlici_a_loan/1e6, '.2f')}MM", b.get("qlici_a_loan", "")),
+            ("── B Loan (Subordinate)",  f"{money(self.qlici_b_loan/1e6, '.2f')}MM", b.get("qlici_b_loan", "")),
+            ("",                         "", ""),
+            ("KEY RATIOS",               "", ""),
+            ("── Credit Price",          f"{money(self.credit_price, '.2f')} per $1 of NMTCs", "SUPPLIED: credit_price"),
+            ("── NMTC Coverage",         f"{self.nmtc_coverage*100:.1f}% of project cost", "DERIVED: total NMTCs / project cost"),
+            ("── Leverage Loan / Equity", f"{self.leverage_loan_to_equity_ratio:.2f}x",
+             "DERIVED: leverage loan / investor equity (credit price alone)"),
         ]
 
-        df = pd.DataFrame(rows, columns=["Item", "Amount"])
+        df = pd.DataFrame(rows, columns=["Item", "Amount", "Basis"])
         print(f"\nNMTC Transaction Structure — {self.project_name}")
-        print("=" * 55)
+        print("=" * 100)
         print(df.to_string(index=False))
+        print()
+        print(PROVENANCE_NOTE)
+        print()
+        print(LEVERAGE_RATIO_NOTE)
+        print()
+        print(statute.deployment_ratio_note())
+        for i, reason in enumerate(self.substantially_all_refusal_reasons, 1):
+            print(f"  {i}. {reason}")
         print()
         return df
 
@@ -67,7 +104,12 @@ class TransactionResult:
             "qlici_b_loan": self.qlici_b_loan,
             "credit_price": self.credit_price,
             "nmtc_coverage": self.nmtc_coverage,
-            "leverage_ratio": self.leverage_ratio,
+            "leverage_loan_to_equity_ratio": self.leverage_loan_to_equity_ratio,
+            "closing_qlici_deployment_ratio": self.closing_qlici_deployment_ratio,
+            "substantially_all_test": self.substantially_all_test,
+            "substantially_all_refusal_reasons": list(self.substantially_all_refusal_reasons),
+            "basis": dict(self.basis),
+            "provenance": dict(self.provenance),
         }
 
 
@@ -82,7 +124,7 @@ def structure(deal: NMTCDeal) -> TransactionResult:
         TransactionResult with complete capital stack breakdown
     """
     nmtc_coverage = deal.total_nmtcs / deal.total_project_cost
-    leverage_ratio = deal.leverage_loan / deal.investor_equity
+    leverage_loan_to_equity_ratio = deal.leverage_loan / deal.investor_equity
 
     return TransactionResult(
         project_name=deal.project_name,
@@ -97,5 +139,10 @@ def structure(deal: NMTCDeal) -> TransactionResult:
         qlici_b_loan=deal.qlici_b_loan,
         credit_price=deal.credit_price,
         nmtc_coverage=nmtc_coverage,
-        leverage_ratio=leverage_ratio,
+        leverage_loan_to_equity_ratio=leverage_loan_to_equity_ratio,
+        closing_qlici_deployment_ratio=deal.qlici_total / deal.qei,
+        substantially_all_test=statute.SUBSTANTIALLY_ALL_STATUS,
+        substantially_all_refusal_reasons=statute.SUBSTANTIALLY_ALL_REFUSAL_REASONS,
+        basis={k: v.label() for k, v in deal.basis.items()},
+        provenance={k: v.provenance.value for k, v in deal.basis.items()},
     )

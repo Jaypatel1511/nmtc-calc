@@ -1,0 +1,12 @@
+Investor equity:        $3,237,000  (DERIVED: total NMTCs x credit price)
+Leverage loan:          $6,763,000
+A / B loans:            $6,763,000 / $3,037,000
+Deployment at closing:  98.0% of QEI  (substantially-all test: REFUSED)
+Allowance dates:        [0, 1, 2, 3, 4, 5, 6]
+PV of credits @ 8%:     $3,095,401
+Credit-only IRR / MOIC: 6.34% / 1.205x
+Net subsidy at unwind:  $3,037,000
+Interest savings:       $2,459,065 over 7 years
+Blended QLICI coupon:   3.42%
+DSCR by year:           [1.55, 1.67, 1.79, 1.85, 1.91, 1.97, 2.03]  (varies: True)
+Fund shortfall / year:  $0  (leverage serviced: True)

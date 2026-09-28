@@ -1,0 +1,21 @@
+# Retired claims. One term per line; blank lines and #-comments ignored.
+# Case-insensitive substring match against README.md and pyproject.toml's
+# [project].description + .keywords.
+#
+# Portfolio seeds (copied from nmtc-mapper; none is live here):
+CET1
+disparate-impact
+the methodology federal examiners use
+#
+# nmtc-calc's own retired claims, each withdrawn in 0.3.0:
+#   typically forgiven   -- 0.2.1 subsidy docstring; forgiveness is a negotiated
+#                           term with no default (methodology audit §2.5).
+#   standard NMTC underwriting convention -- 0.2.1 waterfall docstring; now a
+#                           disclosed house election (audit §2.5).
+#   effective cost of capital -- a blended coupon under a false name (audit §5);
+#                           renamed blended_qlici_coupon.
+#   32 tests             -- 0.2.1 README count; the suite had 53.
+typically forgiven
+standard NMTC underwriting convention
+effective cost of capital
+32 tests
