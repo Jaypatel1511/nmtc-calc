@@ -60,8 +60,7 @@ def test_citations_name_the_right_provisions():
     assert "Audit Technique Guide" in statute.CITATION_TOTAL_RATE
     assert "45D" not in statute.CITATION_TOTAL_RATE
     assert statute.CITATION_REDEMPTION == "26 U.S.C. §45D(g)(3)(C)"
-    assert "1.45D-1(c)(5)(i)" in statute.CITATION_RECAPTURE_PERIOD
-    assert "§45D(g)(1)" in statute.CITATION_RECAPTURE_PERIOD
+    assert statute.CITATION_RECAPTURE_PERIOD == "26 U.S.C. §45D(g)(1)"
 
 
 # ── credit schedule ──────────────────────────────────────────────────────────

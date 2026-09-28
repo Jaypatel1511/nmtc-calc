@@ -189,8 +189,9 @@ def test_dscr_refused_when_debt_service_zero(capsys):
     assert r.dscr_refused_reason == waterfall.DSCR_REFUSED_ZERO_DS.format(fee="")
     df = r.summary()
     out = capsys.readouterr().out
-    assert ("DSCR REFUSED: debt service <= 0 (the A and B coupons are both 0%), so coverage "
-            "is undefined. Net cash flow is still shown.") in out
+    assert ("DSCR REFUSED: debt service <= 0 (A-loan and B-loan interest are both zero, each "
+            "from a zero principal or a 0% coupon), so coverage is undefined. Net cash flow is "
+            "still shown.") in out
     assert list(df["DSCR"]) == ["REFUSED"] * 7
     assert r.to_dict()["dscr_refused_reason"].startswith("DSCR REFUSED")
 
@@ -219,9 +220,10 @@ def test_irr_bound_reason_is_truthful():
     # X10: at p = 0.05/0.39 + 1e-10 the flows DO change sign; the IRR exceeds the bound.
     r = investor.analyze(deal(credit_price=0.05 / 0.39 + 1e-10))
     assert r.credit_only_irr is None
-    assert r.refused_reason.startswith("REFUSED: the IRR exceeds the solver's bound (1e9")
+    assert r.refused_reason.startswith(
+        "REFUSED: the IRR lies above the solver's search range, which ends at 536,870,912 "
+        "(an IRR of 53,687,091,200%). The net t=0 outlay is $-0.00039 against later credits")
     assert "no sign change" not in r.refused_reason
-    assert "$-0.00" in r.refused_reason
     # MOIC is credits / equity = 1/p, about 7.80x -- not an artifact, so it renders.
     assert r.credit_only_moic == pytest.approx(7.8, abs=1e-6)
 

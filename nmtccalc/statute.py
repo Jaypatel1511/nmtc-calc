@@ -89,7 +89,7 @@ RECAPTURE_PERIOD_END_YEAR = CREDIT_PERIOD_YEARS
 
 CITATION_SCHEDULE = "26 U.S.C. §45D(a)(2)-(3)"
 CITATION_TOTAL_RATE = "IRS NMTC Audit Technique Guide (May 2010), credit overview"
-CITATION_RECAPTURE_PERIOD = "26 U.S.C. §45D(g)(1); 26 CFR §1.45D-1(c)(5)(i)"
+CITATION_RECAPTURE_PERIOD = "26 U.S.C. §45D(g)(1)"
 CITATION_REDEMPTION = "26 U.S.C. §45D(g)(3)(C)"
 CITATION_RECAPTURE_AMOUNT = "26 U.S.C. §45D(g)(2)"
 
@@ -167,7 +167,8 @@ BOUNDARY_DISCLOSURE = (
     "({period}). This package works in whole years. The primary sources do not "
     "settle, at the level of a day, whether an event on the seventh anniversary "
     "itself is inside the period. An unwind executed before the seventh "
-    "anniversary date is inside it, and every credit is then recaptured."
+    "anniversary date is inside it: every credit already allowed is then "
+    "recaptured, and later allowance dates are not allowable."
 )
 
 
@@ -180,9 +181,12 @@ TIMING_CONVENTION_DISCLOSURE = (
     "date) through t=6 ({schedule}). The first credit falls on the date the "
     "equity is paid and is not discounted. The investor realizes a credit in "
     "cash through estimated payments and returns filed for the taxable year in "
-    "which the allowance date falls, and that lag is not modeled. Because the lag "
-    "would push every credit later, the credit-only IRR here is an upper bound "
-    "relative to an IRR on cash realization."
+    "which the allowance date falls, and that lag is not modeled. Realization can "
+    "fall earlier or later than the allowance date, depending on where each date "
+    "falls in the investor's taxable year (the credit is allowed for that year, "
+    "§45D(a)(1), and estimated-tax installments can reflect it), so the "
+    "credit-only IRR here is neither a floor nor a ceiling on an IRR measured on "
+    "cash realization."
 )
 
 

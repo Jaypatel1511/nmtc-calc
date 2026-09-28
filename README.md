@@ -119,9 +119,10 @@ the day the equity is paid and is not discounted.
 cash flows are the equity paid and the credits received **and nothing else**, so
 when they are computed both figures depend on no deal input except the credit
 price (credit-only MOIC = 1 / credit price); both are REFUSED when the unwind
-falls inside the recapture period. Because the investor's cash-realization lag
-is not modeled, the credit-only IRR is an upper bound relative to an IRR on
-cash realization. They are labelled credit-only, disclosed as such on every
+falls inside the recapture period. The investor's cash realization is not
+modeled; it can fall earlier or later than each allowance date, so the
+credit-only IRR is neither a floor nor a ceiling on an IRR measured on cash
+realization. They are labelled credit-only, disclosed as such on every
 summary, and are not an investor IRR.
 
 ### `subsidy` — the QALICB's side
@@ -169,7 +170,7 @@ from.
 ## An unwind inside the recapture period
 
 The 7-year credit period and recapture period both run from the QEI date to
-t = 7 (26 U.S.C. §45D(g)(1); 26 CFR §1.45D-1(c)(5)(i)). The last credit is at
+t = 7 (26 U.S.C. §45D(g)(1); the IRS ATG describes the credit period the same way). The last credit is at
 t = 6, so the final year carries full recapture exposure after the last credit
 is earned. Redemption of the QEI is a recapture event (§45D(g)(3)(C)).
 

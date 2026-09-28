@@ -28,10 +28,29 @@ REFUSAL_RECAPTURE = (
     "return is computed on credits the investor does not keep."
 )
 
+# The IRR solver's bracket: the upper end starts at IRR_BRACKET_START and is
+# multiplied by IRR_BRACKET_GROWTH while NPV is still positive there; once it
+# would pass IRR_BRACKET_CAP the solver gives up. The largest upper end it ever
+# evaluates is IRR_SEARCH_MAX, derived here rather than typed.
+IRR_BRACKET_START = 1.0
+IRR_BRACKET_GROWTH = 2.0
+IRR_BRACKET_CAP = 1e9
+
+
+def _search_max() -> float:
+    hi = IRR_BRACKET_START
+    while hi * IRR_BRACKET_GROWTH <= IRR_BRACKET_CAP:
+        hi *= IRR_BRACKET_GROWTH
+    return hi
+
+
+IRR_SEARCH_MAX = _search_max()
+
 REFUSAL_IRR_BOUND = (
-    "REFUSED: the IRR exceeds the solver's bound (1e9, i.e. 100,000,000,000%). "
-    "The net t=0 outlay is {t0} against later credits; a figure this size is an "
-    "artifact of a near-zero outlay, not a return. Credit-only MOIC is unaffected."
+    "REFUSED: the IRR lies above the solver's search range, which ends at "
+    "{search_max:,.0f} (an IRR of {search_pct:,.0f}%). The net t=0 outlay is {t0} "
+    "against later credits; a figure this size is an artifact of a near-zero "
+    "outlay, not a return. Credit-only MOIC is unaffected."
 )
 
 REFUSAL_NO_SIGN_CHANGE = (
@@ -89,7 +108,7 @@ class InvestorResult:
         print("-" * 60)
         print(df.to_string(index=False))
         print("-" * 60)
-        print(f"  Total NMTCs:          ${self.total_nmtcs:,.0f}")
+        print(f"  Total NMTCs:          ${self.total_nmtcs:,.0f}  [{self.basis.get('total_nmtcs', '')}]")
         print(f"  NET CREDITS RETAINED: ${self.net_credits_retained:,.0f}")
         print(f"  Gross Benefit:        ${self.gross_benefit:,.0f}")
         print(f"  Net Benefit:          ${self.net_benefit:,.0f}")
@@ -149,10 +168,10 @@ def _compute_irr(cash_flows: list, tol: float = 1e-12, max_iter: int = 500) -> O
     """
     if not _has_single_outflow_then_inflows(cash_flows):
         return None
-    lo, hi = -1.0 + 1e-9, 1.0
+    lo, hi = -1.0 + 1e-9, IRR_BRACKET_START
     while _npv(hi, cash_flows) > 0:
-        hi *= 2.0
-        if hi > 1e9:
+        hi *= IRR_BRACKET_GROWTH
+        if hi > IRR_BRACKET_CAP:
             return None
     for _ in range(max_iter):
         mid = (lo + hi) / 2.0
@@ -224,7 +243,9 @@ def analyze(deal: NMTCDeal) -> InvestorResult:
         moic = retained / deal.investor_equity
         irr = _compute_irr(cash_flows)
         if irr is None and _has_single_outflow_then_inflows(cash_flows):
-            reason = REFUSAL_IRR_BOUND.format(t0=f"${cash_flows[0]:,.2f}")
+            reason = REFUSAL_IRR_BOUND.format(
+                search_max=IRR_SEARCH_MAX, search_pct=IRR_SEARCH_MAX * 100,
+                t0=f"${cash_flows[0]:.4g}")
             code = "irr_bound"
         elif irr is None:
             code = "no_sign_change"

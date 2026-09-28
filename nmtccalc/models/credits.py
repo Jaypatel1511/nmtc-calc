@@ -53,7 +53,7 @@ class CreditScheduleResult:
         print("-" * 72)
         print(df.to_string(index=False))
         print("-" * 72)
-        print(f"  Total NMTCs:          ${self.total_nmtcs:,.0f}")
+        print(f"  Total NMTCs:          ${self.total_nmtcs:,.0f}  [{self.basis.get('total_nmtcs', '')}]")
         print(f"  NET CREDITS RETAINED: ${self.net_credits_retained:,.0f}  "
               f"(unwind at t={self.unwind_year})")
         print(f"  PV of Credits:        ${self.pv_credits:,.0f}  "

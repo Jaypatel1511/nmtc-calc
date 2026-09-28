@@ -186,7 +186,7 @@ def test_atg_quote_constant():
 def test_sweep_net_subsidy_refused_without_rate(sample_deal):
     from nmtccalc import utils
     df = utils.credit_price_sensitivity(sample_deal, prices=[0.80])
-    assert df.iloc[0]["Net Subsidy ($MM)"] == "REFUSED"
+    assert df.iloc[0]["Net Subsidy ($MM)"] == "REFUSED (no forgiveness rate)"
     assert df.iloc[0]["Subsidy % of Cost"] == "REFUSED (no forgiveness rate)"
 
 

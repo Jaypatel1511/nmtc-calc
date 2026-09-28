@@ -90,3 +90,70 @@ def test_exact_zero_t0_flow_is_no_sign_change_not_irr_bound():
     assert r.cash_flows[0] == 0.0
     assert r.refused_code == "no_sign_change"
     assert "no sign change" in r.refused_reason
+
+
+# ── fix round 2 ─────────────────────────────────────────────────────────────
+
+def test_dscr_refused_on_zero_principal_not_only_zero_coupon(sample_deal):
+    # R1-3: B principal SUPPLIED as 0 (at a 1% coupon), A at 0%: both interest lines are 0.
+    d = dataclasses.replace(sample_deal, noi=600_000, qlici_b_loan_amount=0.0, qlici_a_loan_rate=0.0,
+                            leverage_loan_rate=0.0)
+    r = waterfall.analyze(d)
+    assert d.qlici_b_loan == 0 and d.qlici_b_loan_rate == 0.01
+    assert r.dscr_refused_reason.startswith(
+        "DSCR REFUSED: debt service <= 0 (A-loan and B-loan interest are both zero, each from a "
+        "zero principal or a 0% coupon)")
+
+
+def test_credit_only_note_full_text():
+    # R1-4: the whole note, typed here, so any dropped clause goes red.
+    from nmtccalc.models import investor as inv_mod
+    assert inv_mod.CREDIT_ONLY_NOTE == (
+        "CREDIT-ONLY: these cash flows are the equity paid and the credits received, and nothing "
+        "else: no fund-level taxable income or tax drag, no put or disposition value, no exit tax, "
+        "no sub-annual timing, no §45D(h) basis reduction, no §38 tax-capacity limit. Investor "
+        "equity is always total NMTCs x credit price, so every flow is proportional to QEI. When "
+        "they are computed, both figures depend on no deal input except the credit price: "
+        "credit-only MOIC = 1 / credit price, and two deals at the same price report the same "
+        "credit-only IRR whatever their size, rates or fees. Both are REFUSED when the unwind "
+        "falls inside the 7-year recapture period. They are not an investor IRR or MOIC.")
+    assert "§38" in inv_mod.CREDIT_ONLY_NOTE and "whatever their size, rates or fees" in inv_mod.CREDIT_ONLY_NOTE
+
+
+def test_sweep_no_sign_change_label(sample_deal):
+    df = utils.credit_price_sensitivity(dataclasses.replace(sample_deal, cde_fee_rate=0.001), prices=[0.10])
+    assert df.iloc[0]["Credit-only IRR"] == "REFUSED (no sign change)"
+    assert df.iloc[0]["Credit-only MOIC"] == 10.0
+
+
+def test_sweep_irr_bound_label(sample_deal):
+    # a 2% fee exceeds 39% x 0.128 (negative B), so use a small-fee deal
+    d = dataclasses.replace(sample_deal, cde_fee_rate=0.001)
+    df = utils.credit_price_sensitivity(d, prices=[0.05 / 0.39 + 1e-10])
+    assert df.iloc[0]["Credit-only IRR"] == "REFUSED (IRR above solver search range)"
+
+
+def test_total_nmtcs_labelled_in_credit_and_investor_summaries(sample_deal, capsys):
+    from nmtccalc import credits
+    credits.schedule(sample_deal).summary()
+    out = capsys.readouterr().out
+    assert "Total NMTCs:          $3,900,000  [DERIVED: 39% x QEI" in out
+    investor.analyze(sample_deal).summary()
+    out = capsys.readouterr().out
+    assert "Total NMTCs:          $3,900,000  [DERIVED: 39% x QEI" in out
+
+
+def test_sweep_basis_and_leverage_notes(sample_deal, capsys):
+    utils.credit_price_sensitivity(sample_deal, prices=[0.8])
+    out = capsys.readouterr().out
+    assert utils.SWEEP_BASIS_NOTE == (
+        "Equity ($MM) and Leverage Loan ($MM) are DERIVED at each price: equity = total NMTCs x "
+        "price; leverage loan = QEI - equity (two-source fund).")
+    assert utils.SWEEP_BASIS_NOTE in out
+    assert "the waterfall's A-interest-only bracket is omitted here" in utils.LEVERAGE_COLUMN_NOTE
+
+
+def test_irr_search_max_is_derived():
+    from nmtccalc.models import investor as inv_mod
+    assert inv_mod.IRR_SEARCH_MAX == 2.0 ** 29
+    assert inv_mod.IRR_SEARCH_MAX <= inv_mod.IRR_BRACKET_CAP < inv_mod.IRR_SEARCH_MAX * inv_mod.IRR_BRACKET_GROWTH

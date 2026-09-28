@@ -33,8 +33,9 @@ GUARANTEE_FEE_NOTE = (
 )
 
 DSCR_REFUSED_ZERO_DS = (
-    "DSCR REFUSED: debt service <= 0 (the A and B coupons are both 0%{fee}), so "
-    "coverage is undefined. Net cash flow is still shown."
+    "DSCR REFUSED: debt service <= 0 (A-loan and B-loan interest are both zero, "
+    "each from a zero principal or a 0% coupon{fee}), so coverage is undefined. "
+    "Net cash flow is still shown."
 )
 DSCR_NOT_COMPUTED_NO_NOI = "DSCR not computed: noi was not supplied."
 

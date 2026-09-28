@@ -38,7 +38,9 @@ def _has(text, *clauses):
 def test_timing_disclosure(sample_deal, capsys):
     text = statute.timing_convention_disclosure()
     _has(text, "t=0 (the QEI date) through t=6", "is not discounted", "that lag is not modeled",
-         "the credit-only IRR here is an upper bound relative to an IRR on cash realization")
+         "Realization can fall earlier or later than the allowance date",
+         "§45D(a)(1)", "neither a floor nor a ceiling on an IRR measured on cash realization")
+    assert "upper bound" not in text
     assert text in _out(capsys, credits.schedule, sample_deal)
     assert text in _out(capsys, investor.analyze, sample_deal)
 
@@ -102,7 +104,8 @@ def test_refusal_messages(sample_deal):
     nsc = investor.analyze(dataclasses.replace(sample_deal, credit_price=0.10)).refused_reason
     _has(nsc, "REFUSED:", "no sign change, so no IRR exists", "0.1282", "$500,000")
     bound = investor.analyze(sample_deal.with_credit_price(0.05 / 0.39 + 1e-10)).refused_reason
-    _has(bound, "REFUSED:", "exceeds the solver's bound", "not a return", "Credit-only MOIC is unaffected")
+    _has(bound, "REFUSED:", "lies above the solver's search range, which ends at 536,870,912",
+         "not a return", "Credit-only MOIC is unaffected", "$-0.00039")
 
 
 # ── subsidy ─────────────────────────────────────────────────────────────────

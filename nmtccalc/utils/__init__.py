@@ -11,14 +11,20 @@ DISCOUNT_INVARIANCE_NOTE = (
 
 LEVERAGE_COLUMN_NOTE = (
     "Leverage Serviced is the waterfall's reconciliation at each price: 'yes', or "
-    "the annual interest shortfall and/or the principal gap. The leverage loan "
-    "moves with the price; a SUPPLIED A loan does not."
+    "the annual interest shortfall and/or the principal gap. It counts A-loan and "
+    "B-loan interest; the waterfall's A-interest-only bracket is omitted here. "
+    "The leverage loan moves with the price; a SUPPLIED A loan does not."
+)
+
+SWEEP_BASIS_NOTE = (
+    "Equity ($MM) and Leverage Loan ($MM) are DERIVED at each price: equity = "
+    "total NMTCs x price; leverage loan = QEI - equity (two-source fund)."
 )
 
 REFUSED_CELL = {
     "recapture": "REFUSED (unwind inside recapture period)",
     "no_sign_change": "REFUSED (no sign change)",
-    "irr_bound": "REFUSED (IRR above solver bound)",
+    "irr_bound": "REFUSED (IRR above solver search range)",
 }
 
 SWEEP_INVARIANCE_NOTE = (
@@ -90,7 +96,8 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
                                  else REFUSED_CELL[inv.refused_code]),
             "Credit-only IRR": (f"{inv.credit_only_irr * 100:.1f}%" if inv.credit_only_irr is not None
                                 else REFUSED_CELL[inv.refused_code]),
-            "Net Subsidy ($MM)": round(sub.net_subsidy / 1e6, 2) if sub.net_subsidy is not None else "REFUSED",
+            "Net Subsidy ($MM)": (round(sub.net_subsidy / 1e6, 2) if sub.net_subsidy is not None
+                                  else "REFUSED (no forgiveness rate)"),
             "Subsidy % of Cost": (f"{sub.net_subsidy_pct * 100:.1f}%" if sub.net_subsidy_pct is not None
                                   else "REFUSED (no forgiveness rate)"),
             "Leverage Serviced": serviced,
@@ -101,6 +108,7 @@ def credit_price_sensitivity(deal, prices=None) -> pd.DataFrame:
     print("=" * 75)
     print(df.to_string(index=False))
     print()
+    print(SWEEP_BASIS_NOTE)
     print(SWEEP_INVARIANCE_NOTE)
     print(LEVERAGE_COLUMN_NOTE)
     print()

@@ -8,8 +8,7 @@ Prior release history predates this file.
 **Breaking.** A correctness and honest-labelling release built to the
 2026-09-22 methodology audit's §9, items 0–11. The framing it ships under:
 **a correct pedagogical model of a simplified single-CDE NMTC structure, not a
-deal tool.** 0.2.1's download counts are consistent with mirrors and CI; there
-are no known users.
+deal tool.** There are no known users of 0.2.1.
 
 ### Fixed
 - **Credit timing (26 U.S.C. §45D(a)(3)).** Credits are placed on the seven
@@ -132,8 +131,9 @@ are no known users.
 
 ### Tests
 - 446 tests, including fixtures where project cost differs from QEI and a
-  SUPPLIED A loan differs from the leverage loan (every earlier fixture made
-  both pairs equal, which hid six wrong-operand mutants), and exact-text tests
+  SUPPLIED A loan differs from the leverage loan (the shared
+  `conftest.sample_deal` fixture made both pairs equal, which hid six
+  wrong-operand mutants), and exact-text tests
   for every rendered disclosure. Two tests that pinned defects as correct were
   replaced:
   `test_avg_dscr_equals_min_when_noi_constant` and `test_moic_math`.

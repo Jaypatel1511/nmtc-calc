@@ -1,8 +1,8 @@
-"""Fix round 1, X5: fixtures that separate quantities every earlier fixture made equal.
+"""Fix round 1, X5: a fixture that separates quantities the shared fixture made equal.
 
-Every earlier fixture had total_project_cost == QEI and A loan == leverage loan,
-so a formula that used the wrong one of each pair gave the same answer. This
-deal separates them:
+The shared conftest.sample_deal has total_project_cost == QEI and A loan ==
+leverage loan, so a formula that used the wrong one of each pair gave the same
+answer on it (six such mutants survived). This deal separates them:
 
     QEI 10,000,000; project cost 12,500,000; credit price 0.83
     equity 3,237,000; leverage 6,763,000
